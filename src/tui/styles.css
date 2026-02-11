@@ -1,0 +1,21 @@
+Screen {
+    background: $surface;
+}
+
+#header-container {
+    height: auto;
+    dock: top;
+    content-align: center middle;
+    color: $accent;
+    background: $surface-darken-1;
+    padding: 1;
+}
+
+#ascii-art {
+    width: auto;
+}
+
+Label {
+    width: 100%;
+    content-align: center middle;
+}

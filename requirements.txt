@@ -1,0 +1,7 @@
+textual
+ytmusicapi
+python-mpv
+keyring
+requests
+pyperclip
+rich
