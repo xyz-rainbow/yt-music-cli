@@ -46,14 +46,13 @@ class PlayerScreen(Screen):
 
     def on_mount(self):
         self.player = Player()
-        self.client = YTMusicClient()
         table = self.query_one(DataTable)
         table.add_columns("Title", "Artist", "Album", "Duration")
 
     def on_input_submitted(self, event: Input.Submitted):
         if event.input.id == "search-input":
             query = event.value
-            results = self.client.search_songs(query)
+            results = self.app.client.search_songs(query)
             self.populate_table(results)
 
     def populate_table(self, results):

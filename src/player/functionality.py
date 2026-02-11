@@ -1,48 +1,67 @@
-import mpv
+import subprocess
 import logging
-from typing import Optional, Callable
+import shutil
 
 class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        try:
-            # Initialize MPV instance with specific options for better audio streaming
-            self.mpv = mpv.MPV(ytdl=True, input_default_bindings=True, input_vo_keyboard=True, osc=True)
-            self.mpv['vo'] = 'null' # Audio only
-        except Exception as e:
-            self.logger.error(f"Failed to initialize MPV: {e}")
-            self.mpv = None
+        self.process = None
+        self.current_url = None
+        
+        # Check for players
+        if shutil.which("mpv"):
+            self.executable = "mpv"
+            # --no-video for audio only, --idle=yes to keep process alive? 
+            # Easier to just spawn per track for this simple CLI
+            self.args = ["--no-video"]
+        elif shutil.which("ffplay"):
+            self.executable = "ffplay"
+            self.args = ["-nodisp", "-autoexit"]
+        else:
+            self.executable = None
+            self.logger.error("No player (mpv or ffplay) found in PATH")
 
     def play(self, url: str):
         """Play a stream URL."""
-        if self.mpv:
-            self.mpv.play(url)
+        if not self.executable:
+            return
+
+        self.stop() # Stop previous
+
+        self.current_url = url
+        try:
+            cmd = [self.executable] + self.args + [url]
+            # Start process non-blocking
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception as e:
+            self.logger.error(f"Playback failed: {e}")
 
     def pause(self):
-        """Toggle pause."""
-        if self.mpv:
-            self.mpv.pause = not self.mpv.pause
+        """Toggle pause. (Not easily supported in simple subprocess fire-and-forget without IPC)"""
+        # For simple subprocess, we can't easily pause unless we use an IPC socket (mpv --input-ipc-server)
+        # For now, let's just log that it's limited.
+        self.logger.warning("Pause not implemented in simple subprocess mode")
 
     def stop(self):
         """Stop playback."""
-        if self.mpv:
-            self.mpv.stop()
+        if self.process:
+            self.process.terminate()
+            self.process = None
             
     def set_volume(self, volume: int):
-        """Set volume (0-100)."""
-        if self.mpv:
-            self.mpv.volume = max(0, min(100, volume))
+        """Set volume. (Also hard without IPC)"""
+        pass
             
     def get_status(self) -> dict:
         """Get current playback status."""
-        if not self.mpv:
-            return {"state": "error", "title": "No Backend"}
-            
+        state = "Playing" if self.process and self.process.poll() is None else "Stopped"
         return {
-            "title": self.mpv.media_title or "Unknown",
-            "artist": self.mpv.metadata.get("artist") if self.mpv.metadata else "Unknown",
-            "paused": self.mpv.pause,
-            "position": self.mpv.time_pos,
-            "duration": self.mpv.duration,
-            "volume": self.mpv.volume
+            "title": "Track", # We don't get metadata back from subprocess easily
+            "artist": "Unknown",
+            "paused": False,
+            "state": state
         }

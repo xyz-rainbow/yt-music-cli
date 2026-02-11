@@ -19,3 +19,26 @@ Label {
     width: 100%;
     content-align: center middle;
 }
+
+/* Login Screen specific */
+.hidden {
+    display: none;
+}
+
+.copy-field {
+    background: $surface-lighten-1;
+    border: none;
+    margin-bottom: 1;
+}
+
+.step-label {
+    text-align: left;
+    margin-top: 1;
+    color: $text-muted;
+}
+
+#oauth-container {
+    border: solid $accent;
+    padding: 1;
+    margin: 1;
+}

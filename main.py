@@ -1,8 +1,5 @@
-from src.tui.app import YoutubeMusicApp
-
-def main():
-    app = YoutubeMusicApp()
-    app.run()
+from src.tui.app import YTMusicApp
 
 if __name__ == "__main__":
-    main()
+    app = YTMusicApp()
+    app.run()

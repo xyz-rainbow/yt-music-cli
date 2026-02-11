@@ -1,7 +1,5 @@
 textual
 ytmusicapi
-python-mpv
-keyring
-requests
-pyperclip
-rich
+yt-dlp
+# Backend de audio recomendado para Python
+# Puedes necesitar instalar ffplay o mpv en el sistema
