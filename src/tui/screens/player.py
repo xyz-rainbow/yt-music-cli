@@ -218,7 +218,7 @@ class PlayerScreen(Screen):
                 )
 
     def play_selected_song(self, video_id):
-        \"\"\"Reproducción en hilo puro de sistema para máxima fluidez de GUI.\"\"\"
+        """Reproducción en hilo puro de sistema para máxima fluidez de GUI."""
         # Lógica de Toggle: Si es la misma canción, pausamos/reanudamos
         if self.current_track_id == video_id:
             self.player.toggle_pause()
