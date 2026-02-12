@@ -9,7 +9,7 @@
   ░░░░░     ░░░░░           ░░░░░     ░░░░░   ░░░░░    ░░░░░░░░░  ░░░░░ ░░░░░░░░░   
 ```
 
-# YT-Music (GEMINI)
+# YT-Music CLI
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Textual](https://img.shields.io/badge/UI-Textual-red?logo=gnometerminal&logoColor=white)](https://textual.textualize.io/)
