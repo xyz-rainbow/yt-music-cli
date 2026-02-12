@@ -14,6 +14,7 @@ class AuthManager:
     def __init__(self):
         self._api: Optional[YTMusic] = None
         self.logger = logging.getLogger(__name__)
+        self._custom_creds: Optional[tuple[Optional[str], Optional[str]]] = None
 
     @property
     def api(self) -> YTMusic:
@@ -87,12 +88,16 @@ class AuthManager:
 
     def get_custom_credentials(self) -> tuple[Optional[str], Optional[str]]:
         """Load client_id and client_secret from client_secrets.json."""
+        if self._custom_creds:
+            return self._custom_creds
+
         if os.path.exists(CLIENT_SECRETS_FILE):
             try:
                 with open(CLIENT_SECRETS_FILE, "r") as f:
                     data = json.load(f)
                     creds = data.get("installed", {})
-                    return creds.get("client_id"), creds.get("client_secret")
+                    self._custom_creds = (creds.get("client_id"), creds.get("client_secret"))
+                    return self._custom_creds
             except Exception as e:
                 self.logger.error(f"Error loading secrets: {e}")
         return None, None
@@ -104,6 +109,7 @@ class AuthManager:
     def save_custom_credentials(self, client_id: str, client_secret: str):
         with open(CLIENT_SECRETS_FILE, "w") as f:
             json.dump({"installed": {"client_id": client_id, "client_secret": client_secret}}, f)
+        self._custom_creds = (client_id, client_secret)
 
     def get_oauth_code(self):
         """Initiates the OAuth Device Code flow."""
