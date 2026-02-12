@@ -52,15 +52,33 @@ class LoginScreen(Screen):
         margin-top: 1;
         border: tall $primary;
     }
+    .instructions {
+        margin: 1 0;
+        color: $text-muted;
+        height: auto;
+    }
+    .step {
+        color: $accent;
+        text-style: bold;
+    }
     #error-label {
         color: $error;
         text-align: center;
         margin-top: 1;
+        height: auto;
     }
-    .step-label {
-        color: $accent;
+    #btn-oauth {
+        background: $surface-lighten-1;
+        color: $text-disabled;
+        border: none;
+    }
+    #btn-submit {
+        background: $success;
+        color: white;
+    }
+    Input {
         margin-top: 1;
-        text-style: bold;
+        border: tall $accent;
     }
     """
 
@@ -69,8 +87,20 @@ class LoginScreen(Screen):
             yield Label("YOUTUBE MUSIC CLI", id="title")
             yield Label("Authentication Required", classes="subtitle")
             
-            # OAuth Section
-            yield Button("Login with Google", id="btn-oauth")
+            # Browser Auth Section (Primary)
+            yield Label("Recommended: Browser Authentication", classes="step-label")
+            with Vertical(classes="instructions"):
+                yield Label("1. Open music.youtube.com in your browser")
+                yield Label("2. Copy 'Cookie' header from DevTools (F12 > Network)")
+                yield Label("3. Paste it below and press Enter")
+            
+            yield Input(placeholder="Paste Cookie or JSON Headers here...", id="input-headers")
+            yield Button("Login with Browser Headers", id="btn-submit")
+            
+            yield Label("──────────────────────────────────────", classes="subtitle")
+            
+            # OAuth Section (Deprioritized)
+            yield Button("Login with Google (Requires Custom Project)", id="btn-oauth")
             
             with Vertical(id="oauth-container", classes="hidden"):
                 yield Label("1. Go to URL:", classes="step-label")
@@ -79,10 +109,6 @@ class LoginScreen(Screen):
                 yield Input(id="user-code", classes="copy-field", value="", disabled=True)
                 yield Label("Waiting for approval...", id="status-label")
 
-            yield Button("Paste Headers (Advanced)", id="btn-manual-toggle")
-            yield Input(placeholder="Paste JSON Headers here...", id="input-headers", classes="hidden")
-            yield Button("Submit Headers", id="btn-submit", classes="hidden")
-            
             yield Label("", id="error-label")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -92,18 +118,21 @@ class LoginScreen(Screen):
         if event.button.id == "btn-oauth":
             self.start_oauth_flow(auth)
 
-        elif event.button.id == "btn-manual-toggle":
-            self.query_one("#input-headers").remove_class("hidden")
-            self.query_one("#btn-submit").remove_class("hidden")
-            self.query_one("#btn-manual-toggle").add_class("hidden")
-            
         elif event.button.id == "btn-submit":
             headers = self.query_one("#input-headers").value
+            if not headers:
+                self.query_one("#error-label").update("Please paste headers/cookies first.")
+                return
+                
             if auth.login_with_headers(headers):
                 self.app.switch_screen("player")
                 self.app.notify("Logged in successfully!")
             else:
-                self.query_one("#error-label").update("Invalid headers.")
+                self.query_one("#error-label").update("Invalid headers or cookie string.")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "input-headers":
+            self.on_button_pressed(Button.Pressed(self.query_one("#btn-submit")))
 
     @work(thread=True)
     def start_oauth_flow(self, auth):
@@ -153,7 +182,15 @@ class LoginScreen(Screen):
         except Exception as e:
             logger.error(f"OAuth flow error: {e}")
             def show_error():
-                self.query_one("#error-label").update(f"OAuth Error: {e}")
+                err_msg = str(e)
+                if "invalid_client" in err_msg or "unauthorized_client" in err_msg:
+                    self.query_one("#error-label").update(
+                        "OAuth Error: Google has restricted this public client.\n"
+                        "Please use the 'Browser Authentication' method above."
+                    )
+                else:
+                    self.query_one("#error-label").update(f"OAuth Error: {e}")
+                
                 self.query_one("#oauth-container").add_class("hidden")
             self.app.call_from_thread(show_error)
 

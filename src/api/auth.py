@@ -158,10 +158,29 @@ class AuthManager:
         self.login()
 
     def login_with_headers(self, headers_raw: str) -> bool:
+        """
+        Setup authentication using browser headers. 
+        Supports full JSON headers or just a raw 'Cookie' string.
+        """
         try:
-            json.loads(headers_raw)
-            api = YTMusic(auth=headers_raw)
-            self.save_credentials(headers_raw)
+            # Try parsing as JSON first (full headers)
+            final_headers = headers_raw.strip()
+            try:
+                json.loads(final_headers)
+            except json.JSONDecodeError:
+                # If not JSON, assume it's a raw Cookie string and wrap it
+                if "Cookie:" in final_headers:
+                    # Strip "Cookie: " prefix if present
+                    final_headers = final_headers.split("Cookie:", 1)[1].strip()
+                
+                # ytmusicapi needs it as a JSON string or dict-like string
+                # We'll save it in a format ytmusicapi recognizes
+                headers_dict = {"Cookie": final_headers}
+                final_headers = json.dumps(headers_dict)
+
+            # Test connection
+            api = YTMusic(auth=final_headers)
+            self.save_credentials(final_headers)
             self._api = api
             return True
         except Exception as e:
