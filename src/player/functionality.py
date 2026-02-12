@@ -110,14 +110,14 @@ class Player:
 
     def play(self, url: str):
         """Play a stream URL."""
+        # Security check: Validate protocol
+        if not url.lower().startswith(('http://', 'https://')):
+            self.logger.error(f"Security blocked: Invalid URL scheme: {repr(url)}")
+            raise ValueError("Invalid URL protocol. Only http/https supported.")
 
 
         if not self.executable:
             raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
-
-        # Security check: Validate protocol
-        if not url.lower().startswith(('http://', 'https://')):
-            raise ValueError("Invalid URL protocol. Only http/https supported.")
 
         with self._lock:
             self.stop() # Stop previous
