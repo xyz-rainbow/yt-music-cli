@@ -139,8 +139,10 @@ class Player:
             try:
                 self.process.terminate()
                 self.process.wait(timeout=1)
-            except:
+            except subprocess.TimeoutExpired:
                 self.process.kill()
+            except Exception:
+                pass
             self.process = None
         
         if os.path.exists(self.ipc_path):
