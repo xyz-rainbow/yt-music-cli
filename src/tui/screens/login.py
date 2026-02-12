@@ -1,6 +1,6 @@
 from textual.screen import Screen
 from textual.widgets import Button, Input, Static, Label, Header, Footer
-from textual.containers import Container, Vertical
+from textual.containers import Container
 from textual import work
 from src.api.auth import AuthManager
 import logging
