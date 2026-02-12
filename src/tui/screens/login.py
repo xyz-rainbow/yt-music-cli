@@ -3,9 +3,9 @@ from textual.widgets import Button, Input, Label, TextArea
 from textual.containers import Vertical
 from textual import work
 from src.api.auth import AuthManager
+from src.tui.utils import copy_to_clipboard
 import time
 import logging
-import pyperclip
 import webbrowser
 import os
 import json
@@ -204,32 +204,7 @@ class LoginScreen(Screen):
 
     def copy_code_to_clipboard(self, code: str):
         """Attempts to copy to clipboard using multiple fallbacks."""
-        import base64
-        import sys
-        
-        # 1. Try Pyperclip (standard)
-        try:
-            import pyperclip
-            pyperclip.copy(code)
-            self.app.notify("¡Copiado al portapapeles!", severity="information")
-            return
-        except Exception:
-            pass
-
-        # 2. Try OSC 52 (Terminal fallback - works in VS Code, Kitty, etc.)
-        try:
-            base64_payload = base64.b64encode(code.encode('utf-8')).decode('utf-8')
-            osc52 = f"\x1b]52;c;{base64_payload}\x1b\\"
-            
-            # Using Textual's console for better compatibility with its driver
-            from rich.control import Control
-            self.app.console.control(Control.from_string(osc52))
-            self.app.notify("Copiado vía Terminal (OSC 52)", severity="information")
-        except Exception as e:
-            logger.warning(f"OSC52 failed: {e}")
-            # Final fallback: print it so it's in the terminal history if possible
-            # (though in Textual this might be hidden)
-            self.app.notify("No se pudo copiar automáticamente.", severity="error")
+        copy_to_clipboard(self.app, code)
 
     @work(thread=True)
     def run_local_flow(self, auth):

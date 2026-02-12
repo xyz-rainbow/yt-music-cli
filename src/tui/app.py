@@ -6,7 +6,6 @@ from src.tui.screens.player import PlayerScreen
 from src.tui.screens.account import AccountScreen
 
 class YTMusicApp(App):
-    CSS_PATH = "styles.css"
     
     BINDINGS = [
         ("q", "quit", "Quit"),

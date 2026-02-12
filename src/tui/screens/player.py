@@ -4,6 +4,8 @@ import base64
 import io
 import httpx
 import logging
+import os
+import json
 from PIL import Image
 from rich.text import Text
 from textual import work
@@ -11,47 +13,11 @@ from textual.screen import Screen
 from textual.widgets import Input, DataTable, Button, Label, Static, ProgressBar
 from textual.containers import Container, Horizontal, Vertical
 from src.player.functionality import Player
+from src.tui.utils import copy_to_clipboard
 
 logger = logging.getLogger(__name__)
 
-class AlbumArt(Static):
-    """A widget to display album art using high-quality block characters via Rich."""
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._art_text = Text("\n\n [ NO ART ] ", justify="center")
 
-    def _generate_block_art(self, img):
-        # Optimized size for sidebar (approx 30-36 chars wide)
-        target_width = 30
-        target_height = 15
-        
-        try:
-            small_img = img.convert("RGB").resize((target_width, target_height), Image.Resampling.LANCZOS)
-            text = Text()
-            
-            for y in range(small_img.height):
-                for x in range(small_img.width):
-                    r, g, b = small_img.getpixel((x, y))
-                    # Use full block character for maximum compatibility
-                    text.append("█", style=f"color(#{r:02x}{g:02x}{b:02x})")
-                text.append("\n")
-                
-            return text
-        except Exception as e:
-            return Text(f"Art Error: {e}", style="red")
-
-    def set_image(self, image_bytes: bytes):
-        try:
-            img = Image.open(io.BytesIO(image_bytes))
-            self._art_text = self._generate_block_art(img)
-            self.update(self._art_text)
-        except Exception as e:
-            logger.error(f"Image processing error: {e}")
-            self.update(Text(f"Error: {e}", style="red"))
-
-    def render(self):
-        return self._art_text
 
 class PlayerScreen(Screen):
     BINDINGS = [
@@ -64,8 +30,8 @@ class PlayerScreen(Screen):
         ("alt+enter", "add_to_queue", "Add Queue"),
         ("alt+backspace", "remove_from_queue", "Rem Queue"),
         ("alt+s", "focus_search", "Search"),
-        ("alt+h", "search_home", "Home"),
-        ("alt+f", "toggle_liked", "Like/Unlike"),
+        ("alt+c", "copy_url", "Copy URL"),
+        ("alt+f", "toggle_liked", "Add to Playlist"),
     ]
 
     CSS = """
@@ -77,109 +43,111 @@ class PlayerScreen(Screen):
         width: 20%;
         height: 100%;
         background: transparent;
-        border-right: solid $accent;
+        /* Remove border for a cleaner seamless look */
     }
     .sidebar-title {
         text-style: bold;
-        padding: 1;
-        background: $accent;
-        color: $text;
-        text-align: center;
+        padding: 1 1 0 1;
+        color: $accent;
+        text-align: left;
+        border-bottom: solid $accent;
+        margin: 1 1 0 1;
     }
     .volume-label {
         text-align: center;
-        background: $secondary;
+        background: $accent 30%;
         color: white;
         text-style: bold;
         padding: 0 1;
-        margin: 1 0;
+        margin: 1 1;
+        border-left: solid $accent;
     }
     #playlist-list, #queue-list {
         height: 1fr;
         border: none;
         background: transparent;
+        padding-left: 1;
     }
     #main-content {
-        width: 50%;
+        width: 80%;
         height: 100%;
         background: transparent;
-    }
-    #now-playing {
-        width: 30%;
-        height: 100%;
-        background: transparent;
-        border-left: solid $accent;
-        padding: 1;
-        align: center top;
-    }
-    AlbumArt {
-        width: 100%;
-        height: 18;
-        margin: 1 0;
-        content-align: center middle;
-        background: transparent;
-        border: tall $secondary;
+        border-left: solid $accent; /* Very subtle divider */
     }
     #player-bar {
         height: auto;
-        min-height: 6;
+        min-height: 8; /* Compressed */
         dock: bottom;
         background: $surface-lighten-1;
         border-top: solid $accent;
-        padding: 1 1; /* Minimal padding */
+        padding: 0;
+    }
+    #player-info-container {
+        width: 100%;
+        height: auto;
         align: center middle;
-    }
-    #time-display {
-        width: 100%;
-        text-align: center;
-        text-style: bold;
-        color: $accent;
-        margin-bottom: 1;
-    }
-    ProgressBar {
-        width: 100%;
-        height: 1;
-        margin: 0 0 1 0;
-        background: $surface-darken-1; /* This is the track background */
-        color: $accent; /* This is the filled bar color */
-    }
-    /* Target the internal bar component directly */
-    ProgressBar > .bar {
-        width: 100%;
-        height: 100%;
-        color: $accent;
-        background: $surface-darken-1;
-    }
-    .controls-hint {
-        text-align: center;
-        width: 100%;
-        color: $text-muted;
-    }
-    DataTable {
-        scrollbar-gutter: stable;
-        overflow-x: hidden;
+        padding: 0;
     }
     .song-title {
         text-style: bold;
         color: $accent;
         text-align: center;
         width: 100%;
+        margin-top: 0;
     }
     .song-artist {
         color: $info;
-        text-align: center;
-        width: 100%;
-        margin-top: 1;
-    }
-    .song-album {
-        color: $text-muted;
-        text-align: center;
-        width: 100%;
         text-style: italic;
+        text-align: center;
+        width: 100%;
+        margin-bottom: 0;
+    }
+    #player-controls-row {
+        width: 100%;
+        height: 3;
+        align: center middle;
+        margin: 0;
+    }
+    .btn-control {
+        min-width: 6;
+        height: 3;
+        margin: 0 1;
+        border: none;
+        background: transparent;
+    }
+    .btn-control:hover {
+        background: $accent 20%;
+    }
+    #time-display {
+        text-align: center;
+        text-style: bold;
+        color: $accent;
+        width: 100%;
+        margin-top: -1;
+    }
+    ProgressBar {
+        width: 100%;
+        height: 1;
+        margin: 0;
+        background: $surface-darken-1;
+        color: $accent;
+    }
+    .controls-hint {
+        text-align: center;
+        width: 100%;
+        color: $text-muted;
+        margin-top: -1;
+        margin-bottom: 0;
     }
     #search-input {
-        margin: 1;
+        margin: 1 2;
         border: tall $accent;
+    }
+    /* DataTable header styling */
+    DataTable > .datatable--header {
+        background: $accent 10%;
+        color: $accent;
+        text-style: bold;
     }
     .hidden {
         display: none;
@@ -189,8 +157,6 @@ class PlayerScreen(Screen):
     def compose(self):
         yield Horizontal(
             Vertical(
-                Label("LIBRARY", classes="sidebar-title"),
-                Button("Search Home", id="btn-home", variant="default"),
                 Label("PLAYLISTS", classes="sidebar-title"),
                 DataTable(id="playlist-list"),
                 Label("QUEUE", classes="sidebar-title hidden", id="queue-title"),
@@ -202,31 +168,34 @@ class PlayerScreen(Screen):
                 Input(placeholder="Search songs...", id="search-input"),
                 DataTable(id="results-table"),
                 id="main-content"
-            ),
-            Vertical(
-                Label("NOW PLAYING", classes="sidebar-title"),
-                AlbumArt(id="album-art"),
-                Label("No song selected", id="current-title", classes="song-title"),
-                Label("", id="current-artist", classes="song-artist"),
-                Label("", id="current-album", classes="song-album"),
-                id="now-playing"
             )
         )
         with Vertical(id="player-bar"):
-            yield Label("00:00 / 00:00", id="time-display")
-            # Disable ETA and percentage to keep the bar clean
             yield ProgressBar(total=100, show_bar=True, show_eta=False, show_percentage=False, id="progress-bar")
-            yield Static("Controls: [Space] Pause | [Alt+←/→] Skip | [←/→] Seek | [Alt+↑/↓] Vol | [Alt+Enter] Queue | [Alt+f] Like | [Alt+h] Home | [Alt+s] Search | [Esc] Account", classes="controls-hint")
+            with Vertical(id="player-info-container"):
+                yield Label("No song seleccionado", id="current-title", classes="song-title")
+                yield Label("", id="current-artist", classes="song-artist")
+                with Horizontal(id="player-controls-row"):
+                    yield Button("⏮️", id="btn-prev", classes="btn-control")
+                    yield Button("⏯️", id="btn-play-pause", classes="btn-control")
+                    yield Button("⏭️", id="btn-next", classes="btn-control")
+                yield Label("00:00 / 00:00", id="time-display")
+                yield Static("Atajos: [Espacio] Play/Pausa | [Alt+←/→] Saltar | [Alt+↑/↓] Vol | [Alt+Enter] Añadir Cola", classes="controls-hint")
 
     def on_mount(self):
         self.player = Player()
         self.results_data = {}
         self.queued_songs = []
         self.session_liked_songs = set()
+        self.favorites_file = "favorites.json"
+        self.local_favorites = self.load_favorites()
         self.current_track_id = None
         self._current_volume = 100
         self._cached_playlists = []
         self.search_timer = None  # Timer for search debounce
+        self.current_search_query = ""
+        self.current_results_limit = 20
+        self.is_loading_more = False
         
         # Results table setup
         res_table = self.query_one("#results-table")
@@ -239,7 +208,8 @@ class PlayerScreen(Screen):
         # Playlist table setup
         p_table = self.query_one("#playlist-list")
         p_table.add_column("Playlist")
-        p_table.add_row("❤️ Liked Music", key="liked")
+        p_table.add_row("⭐ Local Favorites", key="local_favs")
+        p_table.add_row("❤️ Liked Music (API)", key="liked")
         p_table.add_row("🔄 Refresh Lists", key="refresh")
         p_table.cursor_type = "row"
 
@@ -254,13 +224,22 @@ class PlayerScreen(Screen):
         self.set_interval(1.0, self.update_progress)
 
     def update_progress(self):
-        """Update progress bar and time display."""
+        """Update progress bar and time display, and handle queue transitions."""
         try:
             status = self.player.get_status()
             if status:
                 time_pos = status.get("time_pos", 0)
                 duration = status.get("duration", 0)
+                state = status.get("state", "Stopped")
                 
+                # Check for end of song to play next in queue
+                # if duration > 0 and time_pos >= duration - 0.5: # 0.5s buffer
+                #     self.play_next_in_queue()
+                
+                # mpv state logic for auto-advance
+                if state == "Stopped" and self.queued_songs:
+                     self.play_next_in_queue()
+
                 # Format time (MM:SS)
                 def format_time(seconds):
                     m, s = divmod(int(seconds), 60)
@@ -271,8 +250,18 @@ class PlayerScreen(Screen):
                 if duration > 0:
                     prog_bar = self.query_one("#progress-bar")
                     prog_bar.progress = (time_pos / duration) * 100
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Progress update error: {e}")
+
+    def play_next_in_queue(self):
+        """Play the next song in the queue and update UI."""
+        if not self.queued_songs:
+            return
+            
+        next_song = self.queued_songs.pop(0)
+        self.update_queue_ui()
+        self.play_selected_song(next_song["videoId"])
+        self.notify(f"Reproduciendo: {next_song.get('title')}")
 
     def update_queue_ui(self):
         q_table = self.query_one("#queue-list")
@@ -289,8 +278,12 @@ class PlayerScreen(Screen):
             q_title.add_class("hidden")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-home":
-            self.load_home_content()
+        if event.button.id == "btn-play-pause":
+            self.toggle_worker()
+        elif event.button.id == "btn-prev":
+            self.action_skip_prev()
+        elif event.button.id == "btn-next":
+            self.action_skip_next()
 
     @work(exclusive=True)
     async def load_home_content(self):
@@ -313,9 +306,13 @@ class PlayerScreen(Screen):
             playlist_id = event.row_key.value
             if playlist_id == "refresh":
                 self.load_playlists()
+            elif playlist_id == "local_favs":
+                self.load_local_favorites_content()
             else:
                 self.load_playlist_content(playlist_id)
         elif event.data_table.id == "queue-list":
+            # Manual selection from queue should play it and remove it/reorder?
+            # For now, just play it.
             self.play_selected_song(event.row_key.value)
         elif event.data_table.id == "results-table":
             self.play_selected_song(event.row_key.value)
@@ -349,12 +346,17 @@ class PlayerScreen(Screen):
         except Exception as e:
             self.notify(f"Error: {e}", severity="error")
 
-    def populate_table(self, results):
+    def populate_table(self, results, append=False):
         table = self.query_one("#results-table")
-        table.clear()
+        if not append:
+            table.clear()
+        
+        # Get existing keys to avoid duplicates in the UI
+        existing_keys = {str(k.value) for k in table.rows.keys()}
+        
         for song in results:
             video_id = song.get("videoId")
-            if video_id:
+            if video_id and video_id not in existing_keys:
                 artists = song.get("artists", [])
                 artist_name = ", ".join([a["name"] for a in artists]) if isinstance(artists, list) else "Unknown"
                 table.add_row(" 🖼️ ", song.get("title", "Unknown"), artist_name, key=video_id)
@@ -363,21 +365,14 @@ class PlayerScreen(Screen):
         song = self.results_data.get(video_id)
         if not song: return
         self.current_track_id = video_id
+        # Metadata update
         self.query_one("#current-title").update(song.get("title", "Unknown"))
         artists = song.get("artists", [])
         artist_name = ", ".join([a["name"] for a in artists]) if isinstance(artists, list) else "Unknown"
         self.query_one("#current-artist").update(artist_name)
-        album = song.get("album")
-        album_name = album.get("name", "Unknown") if isinstance(album, dict) else "Unknown"
-        self.query_one("#current-album").update(f"Album: {album_name}")
         
-        thumbnails = song.get("thumbnails", [])
-        if thumbnails:
-            # Use middle resolution thumbnail if available, or last (highest) as fallback
-            thumb_url = thumbnails[1]["url"] if len(thumbnails) > 1 else thumbnails[-1]["url"]
-            self.download_art(thumb_url)
-            
         self.play_worker(f"https://music.youtube.com/watch?v={video_id}")
+
 
     @work(exclusive=True)
     async def play_worker(self, url: str):
@@ -390,7 +385,8 @@ class PlayerScreen(Screen):
             async with httpx.AsyncClient() as client:
                 resp = await client.get(url, timeout=5.0)
                 if resp.status_code == 200:
-                    self.query_one(AlbumArt).set_image(resp.content)
+                    # self.query_one(AlbumArt).set_image(resp.content)
+                    pass
                 else:
                     self.app.notify(f"Art download failed: {resp.status_code}", severity="warning")
         except Exception as e:
@@ -402,11 +398,24 @@ class PlayerScreen(Screen):
             await asyncio.to_thread(self.player.toggle_pause)
         except: pass
 
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted):
+        """Infinite scroll: load more results when reaching the bottom."""
+        if event.data_table.id == "results-table":
+            row_index = event.cursor_row
+            num_rows = event.data_table.row_count
+            
+            # If we are within 5 rows of the bottom, load more
+            if num_rows > 10 and row_index >= num_rows - 5 and not self.is_loading_more:
+                if self.current_search_query:
+                    self.current_results_limit += 20
+                    self.run_search(self.current_search_query, append=True)
+
     def on_input_changed(self, event: Input.Changed):
         if event.input.id == "search-input":
             # Clear results immediately if empty
             if len(event.value) == 0:
                 self.query_one("#results-table").clear()
+                self.current_search_query = ""
                 return
 
             # Cancel previous timer if user is still typing
@@ -415,20 +424,25 @@ class PlayerScreen(Screen):
             
             # Set new timer (Debounce 0.5s)
             if len(event.value) > 2:
+                self.current_results_limit = 20 # Reset limit on new query
                 self.search_timer = self.set_timer(0.5, lambda: self.run_search(event.value))
 
     @work(exclusive=True)
-    async def run_search(self, query):
+    async def run_search(self, query, append=False):
+        self.current_search_query = query
+        self.is_loading_more = True
         try:
-            results = await asyncio.to_thread(self.app.client.search_songs, query)
+            results = await asyncio.to_thread(self.app.client.search_songs, query, limit=self.current_results_limit)
             if results:
                 for s in results:
                     if 'videoId' in s: self.results_data[s['videoId']] = s
-                self.populate_table(results)
-            else:
+                self.populate_table(results, append=append)
+            elif not append:
                 self.query_one("#results-table").clear()
         except Exception as e:
             self.notify(f"Search error: {e}", severity="error")
+        finally:
+            self.is_loading_more = False
 
     def on_key(self, event):
         if event.key == "down" and self.focused and self.focused.id == "search-input":
@@ -491,30 +505,88 @@ class PlayerScreen(Screen):
             self.notify("Error removing song", severity="error")
 
     def action_toggle_liked(self):
-        table = self.query_one("#results-table")
-        if table.cursor_row is not None:
-            row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key
-            video_id = row_key.value
-            song = self.results_data.get(video_id)
-            if song:
-                is_liked = video_id in self.session_liked_songs
-                self.toggle_liked_worker(video_id, song.get('title'), is_liked)
-
-    @work(thread=True)
-    def toggle_liked_worker(self, video_id, title, was_liked):
-        try:
-            if was_liked:
-                self.app.client.unlike_song(video_id)
-                self.session_liked_songs.remove(video_id)
-                self.app.notify(f"Unliked: {title}", severity="warning")
+        """Toggles local favorite status for the current or highlighted song."""
+        video_id = self.current_track_id
+        if not video_id:
+            table = self.query_one("#results-table")
+            if table.cursor_row is not None:
+                video_id = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
+        
+        if video_id:
+            song = self.results_data.get(video_id, {"title": "Unknown Song"})
+            title = song.get("title", "Unknown")
+            if video_id in self.local_favorites:
+                self.local_favorites.remove(video_id)
+                self.notify(f"Eliminado de Favoritos: {title}", severity="warning")
             else:
-                self.app.client.like_song(video_id)
-                self.session_liked_songs.add(video_id)
-                self.app.notify(f"Liked: {title}")
-        except Exception as e: self.app.notify(f"Error: {e}", severity="error")
+                self.local_favorites.add(video_id)
+                self.notify(f"Añadido a Favoritos: {title}")
+            self.save_favorites()
+        else:
+            self.notify("No song selected", severity="error")
+
+    def load_favorites(self):
+        if os.path.exists(self.favorites_file):
+            try:
+                with open(self.favorites_file, "r") as f:
+                    data = json.load(f)
+                    # Support both list of IDs and dict of metadata
+                    if isinstance(data, list): return set(data)
+                    return set(data.keys())
+            except: return set()
+        return set()
+
+    def save_favorites(self):
+        # We save a dict with some metadata for easier loading later if API is offline
+        favs_data = {}
+        for vid in self.local_favorites:
+            song = self.results_data.get(vid, {"title": "Unknown", "artists": []})
+            favs_data[vid] = song
+        
+        with open(self.favorites_file, "w") as f:
+            json.dump(favs_data, f)
+
+    @work(exclusive=True)
+    async def load_local_favorites_content(self):
+        """Loads and displays the locally stored favorites."""
+        try:
+            if not os.path.exists(self.favorites_file):
+                self.notify("No local favorites yet.")
+                return
+            
+            with open(self.favorites_file, "r") as f:
+                favs = json.load(f)
+            
+            tracks = []
+            for vid, song in favs.items():
+                song["videoId"] = vid
+                tracks.append(song)
+                self.results_data[vid] = song
+            
+            self.populate_table(tracks)
+            self.notify(f"Loaded {len(tracks)} favorites.")
+        except Exception as e:
+            self.notify(f"Error loading favorites: {e}", severity="error")
 
     def action_toggle_pause(self): self.toggle_worker()
     def key_space(self): self.action_toggle_pause()
     def key_q(self): self.app.exit()
     def action_focus_search(self): self.query_one("#search-input").focus()
-    def action_search_home(self): self.load_home_content()
+
+    def action_copy_url(self):
+        """Copies the current or highlighted song URL to clipboard."""
+        # 1. Check if a song is currently playing
+        video_id = self.current_track_id
+        
+        # 2. Fallback: if no song playing, get the highlighted row in the table
+        if not video_id:
+            table = self.query_one("#results-table")
+            if table.cursor_row is not None:
+                row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key
+                video_id = row_key.value
+
+        if video_id:
+            url = f"https://music.youtube.com/watch?v={video_id}"
+            copy_to_clipboard(self.app, url)
+        else:
+            self.notify("No song selected to copy", severity="error")

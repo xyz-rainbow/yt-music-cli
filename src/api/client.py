@@ -75,3 +75,4 @@ class YTMusicClient:
     def unlike_song(self, video_id):
         """Remove rating from a song ('INDIFFERENT')."""
         return self.api.rate_song(video_id, rating="INDIFFERENT")
+
