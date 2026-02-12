@@ -136,14 +136,18 @@ class LoginScreen(Screen):
             
             self.app.call_from_thread(update_ui)
             
-            # Auto-open browser
+
+            # Auto-open browser & Copy Code
+            import webbrowser
+            import pyperclip
             try:
-                import webbrowser
-                webbrowser.open(url)
-                self.app.notify("Browser opened! Please enter the code.")
+                pyperclip.copy(user_code)
+                self.app.notify("Code copied to clipboard! Browser opened.")
             except Exception as e:
-                logger.warning(f"Failed to open browser: {e}")
-                self.app.notify(f"Please open {url} manually", severity="warning")
+                logger.error(f"Clipboard error: {e}")
+                self.app.notify("Browser opened! Please enter the code.")
+            
+            webbrowser.open(url)
             
             # Start Polling Worker
             self.poll_auth_worker(auth, device_code, interval)
@@ -159,7 +163,6 @@ class LoginScreen(Screen):
     def poll_auth_worker(self, auth, device_code, interval):
         import time
         logger.info("Inside poll_auth_worker")
-        import time
         
         while True:
             try:

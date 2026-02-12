@@ -3,3 +3,4 @@ ytmusicapi
 yt-dlp
 # Backend de audio recomendado para Python
 # Puedes necesitar instalar ffplay o mpv en el sistema
+pyperclip

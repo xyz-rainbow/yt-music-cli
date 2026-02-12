@@ -111,7 +111,7 @@ class AuthManager:
                     "client_id": client_id,
                     "client_secret": client_secret,
                     "device_code": device_code,
-                    "grant_type": "http://oauth.net/grant_type/device/1.0"
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
                 }
             )
             
