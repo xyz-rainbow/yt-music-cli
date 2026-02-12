@@ -164,6 +164,8 @@ class Player:
                     self.process.wait(timeout=1)
                 except subprocess.TimeoutExpired:
                     self.process.kill()
+                except Exception:
+                    pass
                 self.process = None
                 self._paused = False
             
