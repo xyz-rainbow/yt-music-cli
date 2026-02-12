@@ -102,7 +102,9 @@ class AuthManager:
         return bool(cid and secret)
 
     def save_custom_credentials(self, client_id: str, client_secret: str):
-        with open(CLIENT_SECRETS_FILE, "w") as f:
+        fd = os.open(CLIENT_SECRETS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w") as f:
             json.dump({"installed": {"client_id": client_id, "client_secret": client_secret}}, f)
 
     def get_oauth_code(self):
@@ -183,7 +185,9 @@ class AuthManager:
 
     def save_credentials(self, data: str):
         """Save credentials to local file."""
-        with open(CREDENTIALS_FILE, 'w') as f:
+        fd = os.open(CREDENTIALS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w') as f:
             f.write(data)
 
     def logout(self):
