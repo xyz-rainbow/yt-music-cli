@@ -1,18 +1,21 @@
 import subprocess
 import logging
 import shutil
+import signal
+import os
+import platform
 
 class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.process = None
         self.current_url = None
+        self._paused = False
         
         # Check for players
         if shutil.which("mpv"):
             self.executable = "mpv"
-            # --no-video for audio only, --idle=yes to keep process alive? 
-            # Easier to just spawn per track for this simple CLI
+            # --no-video for audio only
             self.args = ["--no-video"]
         elif shutil.which("ffplay"):
             self.executable = "ffplay"
@@ -24,11 +27,13 @@ class Player:
     def play(self, url: str):
         """Play a stream URL."""
         if not self.executable:
-            return
+            raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
 
         self.stop() # Stop previous
 
         self.current_url = url
+        self._paused = False
+
         try:
             cmd = [self.executable] + self.args + [url]
             # Start process non-blocking
@@ -39,18 +44,44 @@ class Player:
             )
         except Exception as e:
             self.logger.error(f"Playback failed: {e}")
+            raise e
 
     def pause(self):
-        """Toggle pause. (Not easily supported in simple subprocess fire-and-forget without IPC)"""
-        # For simple subprocess, we can't easily pause unless we use an IPC socket (mpv --input-ipc-server)
-        # For now, let's just log that it's limited.
-        self.logger.warning("Pause not implemented in simple subprocess mode")
+        """Toggle pause using process signals."""
+        if not self.process or self.process.poll() is not None:
+            return
+
+        try:
+            # Check for signal availability safely
+            sig_stop = getattr(signal, "SIGSTOP", None)
+            sig_cont = getattr(signal, "SIGCONT", None)
+
+            if not sig_stop or not sig_cont:
+                self.logger.warning("Pause not supported on this OS (missing SIGSTOP/SIGCONT).")
+                return
+
+            if self._paused:
+                # Resume
+                os.kill(self.process.pid, sig_cont)
+                self._paused = False
+            else:
+                # Pause
+                os.kill(self.process.pid, sig_stop)
+                self._paused = True
+
+        except Exception as e:
+            self.logger.error(f"Failed to toggle pause: {e}")
 
     def stop(self):
         """Stop playback."""
         if self.process:
             self.process.terminate()
+            try:
+                self.process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
             self.process = None
+            self._paused = False
             
     def set_volume(self, volume: int):
         """Set volume. (Also hard without IPC)"""
@@ -58,10 +89,19 @@ class Player:
             
     def get_status(self) -> dict:
         """Get current playback status."""
-        state = "Playing" if self.process and self.process.poll() is None else "Stopped"
+        is_running = self.process and self.process.poll() is None
+
+        if not is_running:
+             state = "Stopped"
+             self._paused = False # Reset if process died
+        elif self._paused:
+             state = "Paused"
+        else:
+             state = "Playing"
+
         return {
             "title": "Track", # We don't get metadata back from subprocess easily
             "artist": "Unknown",
-            "paused": False,
+            "paused": self._paused,
             "state": state
         }
