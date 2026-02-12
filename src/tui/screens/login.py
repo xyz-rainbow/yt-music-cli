@@ -30,7 +30,6 @@ class LoginScreen(Screen):
     #error-label {
         color: $error;
         text-align: center;
-        /* display: none;  <-- REMOVE THIS to ensure we see errors if they occur contextually, or handle via class */
     }
     """
 
