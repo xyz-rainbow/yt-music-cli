@@ -17,14 +17,11 @@ class TestPlayerFunctionality(unittest.TestCase):
         self.assertIsNone(player.executable)
 
     @patch('shutil.which')
-    def test_play_no_player_returns_safely(self, mock_which):
+    def test_play_no_player_raises_error(self, mock_which):
         mock_which.return_value = None
         player = Player()
-        # Should not raise exception
-        try:
+        with self.assertRaises(RuntimeError):
             player.play("http://example.com")
-        except RuntimeError:
-            self.fail("play() raised RuntimeError unexpectedly!")
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
