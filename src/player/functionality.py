@@ -13,7 +13,6 @@ class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.process = None
-        self._paused = False
         self.current_url = None
         self.ipc_path = "/tmp/ytmusic-cli-mpv.sock"
         self._paused = False
