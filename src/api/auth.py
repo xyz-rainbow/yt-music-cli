@@ -46,7 +46,7 @@ class AuthManager:
                 client_id, client_secret = self.get_custom_credentials()
                 if client_id and client_secret:
                     # ytmusicapi uses these to refresh tokens
-                    self._api = YTMusic(CREDENTIALS_FILE)
+                    self._api = YTMusic(CREDENTIALS_FILE, oauth_credentials=CLIENT_SECRETS_FILE)
                 else:
                     self._api = YTMusic(CREDENTIALS_FILE)
             else:
@@ -135,6 +135,12 @@ class AuthManager:
 
     def finish_oauth(self, token_data: Dict):
         """Finalize login with token data."""
+        # Ensure client credentials are saved with tokens for completeness
+        client_id, client_secret = self.get_custom_credentials()
+        if client_id and client_secret:
+            token_data["client_id"] = client_id
+            token_data["client_secret"] = client_secret
+            
         self.save_credentials(json.dumps(token_data))
         # Re-initialize API to use the new credentials
         self.login()

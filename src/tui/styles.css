@@ -37,6 +37,16 @@ Label {
     color: $text-muted;
 }
 
+#login-container {
+    width: 60%;
+    max-width: 80;
+    min-width: 40;
+    height: auto;
+    border: solid $accent;
+    padding: 2;
+    background: $surface;
+}
+
 #oauth-container {
     border: solid $accent;
     padding: 1;

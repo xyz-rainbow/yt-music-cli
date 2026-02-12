@@ -17,7 +17,8 @@ Para usar la aplicación, necesitas crear tus propias credenciales de API de Goo
 2. Selecciona **Externo**.
 3. Rellena los campos obligatorios (nombre de la app, correo de soporte).
 4. En "Scopes", puedes dejarlo por defecto o añadir `../auth/youtube`.
-5. En "Usuarios de prueba", añade tu propio correo de Gmail (importante si la app no está verificada).
+5. **IMPORTANTE:** En "Usuarios de prueba" (Test Users), haz clic en **+ ADD USERS** y añade tu dirección de correo (ej: `devrainbow1@gmail.com`). **Si no haces esto, recibirás un error 403 Access Denied.**
+6. Guarda y continúa.
 
 ## 4. Crear Credenciales (Client ID y Secret)
 1. Ve a **APIs y servicios** > **Credenciales**.

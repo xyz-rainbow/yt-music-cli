@@ -140,12 +140,18 @@ class LoginScreen(Screen):
             # Auto-open browser & Copy Code
             import webbrowser
             import pyperclip
+            
             try:
-                pyperclip.copy(user_code)
-                self.app.notify("Code copied to clipboard! Browser opened.")
+                # Try Textual's clipboard first (if available in newer versions)
+                if hasattr(self.app, "copy_to_clipboard"):
+                     self.app.copy_to_clipboard(user_code)
+                     self.app.notify("Code copied to clipboard! Browser opened.")
+                else:
+                     pyperclip.copy(user_code)
+                     self.app.notify("Code copied to clipboard! Browser opened.")
             except Exception as e:
                 logger.error(f"Clipboard error: {e}")
-                self.app.notify("Browser opened! Please enter the code.")
+                self.app.notify("Could not copy automatically. Please copy the code manually from the screen.", severity="warning")
             
             webbrowser.open(url)
             
