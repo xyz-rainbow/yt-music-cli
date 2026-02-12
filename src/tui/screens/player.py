@@ -131,6 +131,7 @@ class PlayerScreen(Screen):
     def on_mount(self):
         self.player = Player()
         self.results_data = {}
+        self.row_key_map = {}
         self.current_track_id = None # Rastrear canción actual
         
         # Setup results table
@@ -178,7 +179,9 @@ class PlayerScreen(Screen):
             else:
                 self.load_playlist_content(playlist_id)
         elif event.data_table.id == "results-table":
-            self.play_selected_song(event.row_key.value)
+            video_id = self.row_key_map.get(event.row_key)
+            if video_id:
+                self.play_selected_song(video_id)
 
     @work(exclusive=True)
     async def load_playlist_content(self, playlist_id):
@@ -200,21 +203,30 @@ class PlayerScreen(Screen):
     def populate_table(self, results):
         table = self.query_one("#results-table")
         table.clear()
+        self.row_key_map.clear()
+        rows_to_add = []
+        video_ids = []
+
         for song in results:
-            duration = song.get("duration", "N/A")
             video_id = song.get("videoId")
-            if video_id:
-                artists = song.get("artists", [])
-                artist_name = ", ".join([a["name"] for a in artists]) if isinstance(artists, list) else "Unknown"
-                album_name = song.get("album", {}).get("name", "Unknown") if isinstance(song.get("album"), dict) else "N/A"
-                
-                table.add_row(
-                    song.get("title", "Unknown"),
-                    artist_name,
-                    album_name,
-                    duration,
-                    key=video_id
-                )
+            if not video_id:
+                continue
+
+            duration = song.get("duration", "N/A")
+            artists = song.get("artists", [])
+            artist_name = ", ".join(a["name"] for a in artists) if isinstance(artists, list) else "Unknown"
+            album_name = song.get("album", {}).get("name", "Unknown") if isinstance(song.get("album"), dict) else "N/A"
+
+            rows_to_add.append((
+                song.get("title", "Unknown"),
+                artist_name,
+                album_name,
+                duration
+            ))
+            video_ids.append(video_id)
+
+        keys = table.add_rows(rows_to_add)
+        self.row_key_map.update(zip(keys, video_ids))
 
     def play_selected_song(self, video_id):
         """Reproducción en hilo puro de sistema para máxima fluidez de GUI."""
