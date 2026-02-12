@@ -1,8 +1,6 @@
-textual
-ytmusicapi
-yt-dlp
-pyperclip
-Pillow
-httpx
-requests
-curl_cffi
+textual>=0.40
+ytmusicapi>=1.8
+yt-dlp>=2024.1
+pyperclip>=1.8
+Pillow>=10.0
+httpx>=0.25

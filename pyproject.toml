@@ -3,19 +3,43 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "yt-music"
-version = "0.1.0"
-description = "Un reproductor de YouTube Music para la terminal"
+name = "yt-music-cli"
+version = "1.0.0"
+description = "A lightweight YouTube Music player for the terminal"
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.10"
-dependencies = [
-    "textual",
-    "ytmusicapi",
-    "yt-dlp",
-    "pyperclip",
-    "Pillow",
-    "httpx",
+authors = [
+    {name = "xyz-rainbow"},
 ]
+keywords = ["youtube-music", "cli", "tui", "terminal", "music-player", "mpv"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Players",
+]
+dependencies = [
+    "textual>=0.40",
+    "ytmusicapi>=1.8",
+    "yt-dlp>=2024.1",
+    "pyperclip>=1.8",
+    "Pillow>=10.0",
+    "httpx>=0.25",
+]
+
+[project.urls]
+Homepage = "https://github.com/xyz-rainbow/yt-music-cli"
+Repository = "https://github.com/xyz-rainbow/yt-music-cli"
+Issues = "https://github.com/xyz-rainbow/yt-music-cli/issues"
 
 [project.scripts]
 yt-music = "src.tui.app:run_app"

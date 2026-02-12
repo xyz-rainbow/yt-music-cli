@@ -1,82 +1,140 @@
-```text
- ███  ███ █████████          ██████   ██████ ███    ███  █████████ ███  █████████ 
-░░███░███░░░░███░░░         ░░██████ ██████ ░███   ░███ ░███░░░░░░ ░███ ░███░░░░░░  
- ░░█████     ░███            ░███░█████░███ ░███   ░███ ░███       ░███ ░███        
-  ░░███      ░███   ███████  ░███░░███ ░███ ░███   ░███ ░█████████ ░███ ░███        
-   ░███      ░███  ░░░░░░░   ░███ ░░░  ░███ ░███   ░███ ░░░░░░░███ ░███ ░███        
-   ░███      ░███            ░███      ░███ ░░███ ███░  █████████  ░███ ░███        
-   █████     █████           █████     █████ ░░█████░  ░█████████  █████░█████████  
-  ░░░░░     ░░░░░     ░░░░░   ░░░░░    ░░░░░ ░░░░░ ░░░░░░░░░   
+<p align="center">
+<pre>
+ ███  ███ █████████          ██████   ██████ ███    ███  █████████ ███  █████████
+░░███░███░░░░███░░░         ░░██████ ██████ ░███   ░███ ░███░░░░░░ ░███ ░███░░░░░░
+ ░░█████     ░███            ░███░█████░███ ░███   ░███ ░███       ░███ ░███
+  ░░███      ░███   ███████  ░███░░███ ░███ ░███   ░███ ░█████████ ░███ ░███
+   ░███      ░███  ░░░░░░░   ░███ ░░░  ░███ ░███   ░███ ░░░░░░░███ ░███ ░███
+   ░███      ░███            ░███      ░███ ░░███ ███░  █████████  ░███ ░███
+   █████     █████           █████     █████ ░░█████░  ░█████████  █████░█████████
+  ░░░░░     ░░░░░           ░░░░░     ░░░░░   ░░░░░    ░░░░░░░░░  ░░░░░ ░░░░░░░░░
+</pre>
+</p>
+
+<p align="center">
+  <strong>🎵 YouTube Music in your terminal. No browser required.</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://textual.textualize.io/"><img src="https://img.shields.io/badge/TUI-Textual-FF3333?logo=gnometerminal&logoColor=white" alt="Textual"></a>
+  <a href="https://mpv.io/"><img src="https://img.shields.io/badge/Audio-mpv-690DAD" alt="mpv"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+</p>
+
+---
+
+A **lightweight, powerful, and minimalist** YouTube Music player for the terminal. Industrial-modern TUI built with [Textual](https://textual.textualize.io/), audio powered by [mpv](https://mpv.io/), and YouTube Music integration via [ytmusicapi](https://github.com/sigma67/ytmusicapi).
+
+## ✨ Features
+
+- 🔍 **Smart Search** — Instant results with title & artist columns
+- 🏠 **Home Recommendations** — Personalized suggestions from YouTube Music
+- 🖼️ **Album Art** — High-resolution cover art via ANSI block rendering
+- 📂 **Queue Management** — Add songs without interrupting playback
+- ❤️ **Favorites** — Like/unlike songs synced to your YT Music library
+- 🔊 **Volume Control** — Fine-grained adjustment with visual feedback
+- 🔐 **Google OAuth Login** — One-click device code authentication
+- 🌓 **Transparency** — Respects your terminal's transparency & blur settings
+
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Play selected song |
+| `Space` | Pause / Resume |
+| `Alt+Enter` | Add to queue |
+| `Alt+Backspace` | Remove last from queue |
+| `Alt+→` / `Alt+←` | Next / Previous in queue |
+| `→` / `←` | Seek ±10 seconds |
+| `Alt+↑` / `Alt+↓` | Volume ±5% |
+| `Alt+F` | Like / Unlike song |
+| `Alt+H` | Home recommendations |
+| `Alt+S` | Focus search bar |
+| `Esc` | Account screen |
+| `Q` | Quit |
+
+## 📦 Requirements
+
+| Dependency | Purpose |
+|------------|---------|
+| **Python 3.10+** | Runtime |
+| **[mpv](https://mpv.io/)** | Audio playback engine (must be in `PATH`) |
+| **A modern terminal** | Ghostty, Kitty, WezTerm, Alacritty, etc. |
+
+## 🚀 Installation
+
+```bash
+# Clone
+git clone https://github.com/xyz-rainbow/yt-music-cli.git
+cd yt-music-cli
+
+# Setup virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install
+pip install -e .
 ```
 
-# YT-Music CLI (Pro Edition)
+### Install mpv (if not already installed)
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Textual](https://img.shields.io/badge/UI-Textual-red?logo=gnometerminal&logoColor=white)](https://textual.textualize.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+```bash
+# Debian/Ubuntu
+sudo apt install mpv
 
-Un reproductor de música **ligero, potente y minimalista** para la terminal. Disfruta de YouTube Music con una interfaz industrial moderna, gestión de colas avanzada y soporte para transparencias.
+# Arch
+sudo pacman -S mpv
 
----
+# macOS
+brew install mpv
+```
 
-## ✨ Características Actuales
+## ▶️ Usage
 
-- 🔍 **Búsqueda Inteligente:** Resultados instantáneos con columnas de Título y Artista.
-- 🏠 **Search Home:** Acceso directo a recomendaciones personalizadas de YouTube Music.
-- 🖼️ **Arte de Álbum en Alta Resolución:** Visualización de portadas mediante bloques ANSI de alta calidad (compatible con cualquier terminal moderna).
-- 📂 **Gestión de Colas (Queue):** Añade canciones a tu sesión sin interrumpir la actual. Categoría dedicada en la barra lateral.
-- 🔐 **Gestión de Cuenta:** Pantalla centralizada para verificar sesión, cambiar de usuario o cerrar sesión (`Esc`).
-- 🔊 **Control de Volumen Dinámico:** Ajuste fino con feedback visual en porcentaje.
-- ❤️ **Sistema de Favoritos:** Añade o elimina canciones de tus "Liked Music" instantáneamente.
-- 🌓 **Transparencia Nativa:** Respeta la configuración de transparencia y blur de tu terminal (Ghostty, Kitty, etc.).
-- 🛡️ **Anti-Bot Bypass:** Integración avanzada con `yt-dlp` usando cookies de navegador e impersonación de Chrome.
+```bash
+# Run the app
+yt-music
 
----
+# Or directly with Python
+python main.py
+```
 
-## ⌨️ Atajos de Teclado (Master List)
+On first launch, you'll be prompted to **Login with Google** using a device code — just open the URL in your browser and enter the code shown.
 
-| Tecla | Acción |
-|-------|--------|
-| `Enter` | Reproducir canción seleccionada |
-| `Espacio` | Pausar / Reanudar |
-| `Alt + Enter` | **Añadir a la cola** |
-| `Alt + Backspace` | **Eliminar última de la cola** (Muestra siguiente) |
-| `Alt + → / ←` | **Siguiente / Anterior** canción en cola |
-| `→ / ←` | Adelantar / Retrasar **10 segundos** |
-| `Alt + ↑ / ↓` | **Subir / Bajar volumen** (5%) |
-| `Alt + F` | **Like / Unlike** (Añadir/Quitar favoritos) |
-| `Alt + H` | **Search Home** (Recomendaciones) |
-| `Alt + S` | Enfocar barra de búsqueda |
-| `Esc` | Volver a Gestión de Cuenta / Menú Principal |
-| `Q` | Salir de la aplicación |
+## 🏗️ Project Structure
 
----
+```
+yt-music-cli/
+├── main.py                  # Entry point
+├── pyproject.toml           # Package config
+├── src/
+│   ├── api/
+│   │   ├── auth.py          # OAuth & authentication
+│   │   └── client.py        # YouTube Music API client
+│   ├── player/
+│   │   └── functionality.py # mpv playback engine
+│   └── tui/
+│       ├── app.py           # Textual app root
+│       ├── styles.css       # TUI theme
+│       └── screens/
+│           ├── login.py     # Login screen
+│           ├── player.py    # Main player screen
+│           └── account.py   # Account management
+└── styles.css               # Global styles
+```
 
-## 🛠️ Requisitos del Sistema
+## ⚠️ Known Limitations
 
-- **Python 3.10+**
-- **mpv:** Motor de audio recomendado (debe estar en el PATH).
-- **yt-dlp:** Instalado automáticamente en el entorno virtual.
-- **Navegador Chrome:** Recomendado para el bypass de cookies anti-bot.
+- **OAuth search fallback**: Due to a [known ytmusicapi bug](https://github.com/sigma67/ytmusicapi/issues), some OAuth client types receive HTTP 400 on search. The app automatically falls back to unauthenticated search, which works without issues.
+- **Library operations**: Playlist and like sync may be affected by the same upstream OAuth bug.
 
-## 🚀 Instalación Rápida
+## 📄 License
 
-1. **Clonar e instalar:**
-   ```bash
-   git clone https://github.com/tu-usuario/ytmusic-cli.git
-   cd yt-music-cli
-   python3 -m venv .venv
-   source .venv/bin/activate  # En Linux
-   pip install -r requirements.txt
-   pip install -e .
-   ```
-
-2. **Ejecutar:**
-   ```bash
-   yt-music
-   ```
+[MIT](LICENSE) © 2026
 
 ---
 
-Desarrollado con ❤️ para amantes de la terminal.
-MIT License © 2026
+<p align="center">
+  Built with ❤️ for terminal lovers.
+</p>

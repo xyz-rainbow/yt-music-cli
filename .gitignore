@@ -3,7 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# Log files
+*.log
+
 *.so
 
 # Distribution / packaging
@@ -140,9 +142,25 @@ cython_debug/
 
 # YTMusic Credentials
 oauth.json
+oauth.json.bak
 browser.json
 headers_auth.json
 client_secrets.json
 *.json.secret
 .env
 auth.json
+
+# Build artifacts
+*.egg-info/
+
+# IDE / Editor metadata
+.jules/
+
+# Temp debug scripts
+check_defaults.py
+debug_oauth.py
+diagnose_auth.py
+test_creds*.py
+test_login.py
+reproduce_issue.py
+
