@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from typing import Optional, Dict
+import requests
 from ytmusicapi import YTMusic
 
 APP_NAME = "ytmusic-cli"
@@ -58,7 +59,6 @@ class AuthManager:
                     self.logger.debug("Fetching Channel ID...")
                     user_id = None
                     try:
-                        import requests
                         resp = requests.get("https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true", headers=headers)
                         resp.raise_for_status()
                         channel_data = resp.json()
@@ -115,7 +115,6 @@ class AuthManager:
         scope = "https://www.googleapis.com/auth/youtube"
         
         try:
-            import requests
             response = requests.post(
                 "https://oauth2.googleapis.com/device/code",
                 data={"client_id": client_id, "client_secret": client_secret, "scope": scope}
@@ -132,7 +131,6 @@ class AuthManager:
         client_id, client_secret = self.get_custom_credentials()
 
         try:
-            import requests
             response = requests.post(
                 "https://oauth2.googleapis.com/token",
                 data={
@@ -190,4 +188,3 @@ class AuthManager:
         if os.path.exists(CREDENTIALS_FILE):
             os.remove(CREDENTIALS_FILE)
         self._api = None
-
