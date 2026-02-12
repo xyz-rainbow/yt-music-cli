@@ -28,13 +28,13 @@ class YTMusicApp(App):
             self.push_screen("login")
 
     def action_quit(self) -> None:
-        """Forzar salida limpia."""
+        """Force clean exit."""
         if hasattr(self, "screen") and hasattr(self.screen, "player"):
             self.screen.player.stop()
         self.exit()
 
     def action_toggle_pause(self) -> None:
-        """Acción global de pausa."""
+        """Global pause action."""
         if hasattr(self.screen, "player"):
             self.screen.player.toggle_pause()
 
