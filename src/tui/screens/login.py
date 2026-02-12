@@ -1,10 +1,11 @@
 from textual.screen import Screen
-from textual.widgets import Button, Input, Label
+from textual.widgets import Button, Input, Label, TextArea
 from textual.containers import Vertical
 from textual import work
 from src.api.auth import AuthManager
 import time
 import logging
+import pyperclip
 
 # Use logger but do not configure basicConfig here
 logger = logging.getLogger(__name__)
@@ -48,6 +49,12 @@ class LoginScreen(Screen):
         background: #4CAF50;
         color: white;
     }
+    #btn-paste {
+        background: $accent;
+        color: white;
+        height: 3;
+        margin-top: 1;
+    }
     Input {
         margin-top: 1;
         border: tall $primary;
@@ -76,9 +83,11 @@ class LoginScreen(Screen):
         background: $success;
         color: white;
     }
-    Input {
+    TextArea {
         margin-top: 1;
+        height: 8;
         border: tall $accent;
+        background: $surface;
     }
     """
 
@@ -94,7 +103,8 @@ class LoginScreen(Screen):
                 yield Label("2. Copy 'Cookie' header from DevTools (F12 > Network)")
                 yield Label("3. Paste it below and press Enter")
             
-            yield Input(placeholder="Paste Cookie or JSON Headers here...", id="input-headers")
+            yield TextArea(id="input-headers")
+            yield Button("Paste from Clipboard", id="btn-paste")
             yield Button("Login with Browser Headers", id="btn-submit")
             
             yield Label("──────────────────────────────────────", classes="subtitle")
@@ -118,8 +128,20 @@ class LoginScreen(Screen):
         if event.button.id == "btn-oauth":
             self.start_oauth_flow(auth)
 
+        elif event.button.id == "btn-paste":
+            try:
+                text = pyperclip.paste()
+                if text:
+                    self.query_one("#input-headers").value = text
+                    self.app.notify("Content pasted from clipboard!")
+                else:
+                    self.app.notify("Clipboard is empty.", severity="warning")
+            except Exception as e:
+                logger.error(f"Paste error: {e}")
+                self.app.notify("Could not access clipboard.", severity="error")
+
         elif event.button.id == "btn-submit":
-            headers = self.query_one("#input-headers").value
+            headers = self.query_one("#input-headers").text
             if not headers:
                 self.query_one("#error-label").update("Please paste headers/cookies first.")
                 return
@@ -130,9 +152,7 @@ class LoginScreen(Screen):
             else:
                 self.query_one("#error-label").update("Invalid headers or cookie string.")
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "input-headers":
-            self.on_button_pressed(Button.Pressed(self.query_one("#btn-submit")))
+    # Removed on_input_submitted because TextArea handles enter differently
 
     @work(thread=True)
     def start_oauth_flow(self, auth):
@@ -160,7 +180,6 @@ class LoginScreen(Screen):
 
             # Auto-open browser & Copy Code
             import webbrowser
-            import pyperclip
             
             try:
                 # Try Textual's clipboard first (if available in newer versions)

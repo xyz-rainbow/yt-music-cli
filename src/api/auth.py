@@ -160,26 +160,45 @@ class AuthManager:
     def login_with_headers(self, headers_raw: str) -> bool:
         """
         Setup authentication using browser headers. 
-        Supports full JSON headers or just a raw 'Cookie' string.
+        Supports full JSON headers, raw 'Cookie' string, or multi-line key-value headers.
         """
         try:
-            # Try parsing as JSON first (full headers)
             final_headers = headers_raw.strip()
+            if not final_headers:
+                return False
+
+            # Case 1: JSON format
             try:
                 json.loads(final_headers)
+                # If it's valid JSON, it's already in the format ytmusicapi expects
             except json.JSONDecodeError:
-                # If not JSON, assume it's a raw Cookie string and wrap it
-                if "Cookie:" in final_headers:
-                    # Strip "Cookie: " prefix if present
-                    final_headers = final_headers.split("Cookie:", 1)[1].strip()
+                # Case 2: Multi-line raw headers or single cookie string
+                headers_dict = {}
+                lines = final_headers.splitlines()
                 
-                # ytmusicapi needs it as a JSON string or dict-like string
-                # We'll save it in a format ytmusicapi recognizes
-                headers_dict = {"Cookie": final_headers}
+                # Check if it looks like key: value pairs
+                for line in lines:
+                    if ":" in line:
+                        key, val = line.split(":", 1)
+                        headers_dict[key.strip()] = val.strip()
+                
+                # If no pairs found, treat whole thing as a Cookie value
+                if not headers_dict:
+                    headers_dict["Cookie"] = final_headers
+                
+                # If "Cookie:" was in the keys (from parsing pairs), good.
+                # If we have only some headers but no Cookie, this might fail, 
+                # but we'll try anyway or ensure a default UA exists.
+                if "User-Agent" not in headers_dict:
+                    headers_dict["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                
                 final_headers = json.dumps(headers_dict)
 
-            # Test connection
+            # Test connection with a real API call (Health Check)
             api = YTMusic(auth=final_headers)
+            # Try a lightweight call to check if auth is valid
+            api.get_library_playlists(limit=1)
+            
             self.save_credentials(final_headers)
             self._api = api
             return True
