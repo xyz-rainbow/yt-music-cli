@@ -171,11 +171,16 @@ class AuthManager:
     def login_with_headers(self, headers_raw: str) -> bool:
         """Attempt to login with raw JSON headers."""
         try:
+            # Basic validation: check if it's valid JSON
             headers_dict = json.loads(headers_raw)
-            # Basic validation: check if 'Cookie' or some key exists
-            # ytmusicapi will validate it properly on init
+
+            # Validate headers by initializing YTMusic
+            # This ensures we don't save invalid credentials
+            api = YTMusic(auth=headers_raw)
+
+            # If successful, save credentials and update api instance
             self.save_credentials(headers_raw)
-            self.login()
+            self._api = api
             return True
         except Exception as e:
             self.logger.error(f"Manual header login failed: {e}")
