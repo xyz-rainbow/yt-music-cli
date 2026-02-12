@@ -3,7 +3,6 @@ import logging
 import os
 import requests
 from typing import Optional, Dict
-import requests
 from ytmusicapi import YTMusic
 
 APP_NAME = "ytmusic-cli"
@@ -154,17 +153,27 @@ class AuthManager:
                 return response.json()
             elif response.status_code == 428: # Precondition Required
                 return None
+            elif response.status_code == 403:
+                # Often happens if the code expired or rate limited
+                raise Exception("Authorization expired or forbidden.")
+
+            try:
+                error_data = response.json()
+            except ValueError:
+                # If response is not JSON
+                response.raise_for_status()
+                # If raise_for_status didn't raise, fallback
+                raise Exception(f"Request failed with status {response.status_code}")
             
-            error_data = response.json()
             if error_data.get("error") == "authorization_pending":
                 return None
             
             raise Exception(error_data.get("error_description", "Unknown error"))
                 
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"OAuth Poll Network Error: {e}")
+            raise
         except Exception as e:
-            if isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 403:
-                 # Often happens if the code expired or rate limited
-                 raise Exception("Authorization expired or forbidden.")
             self.logger.error(f"OAuth Poll Failed: {e}")
             raise
 
