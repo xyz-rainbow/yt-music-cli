@@ -4,3 +4,4 @@ yt-dlp
 pyperclip
 Pillow
 httpx
+requests
