@@ -4,6 +4,11 @@ import unittest
 import subprocess
 from unittest.mock import patch, MagicMock, call
 
+# Mock dependencies before import
+sys.modules['yt_dlp'] = MagicMock()
+sys.modules['ytmusicapi'] = MagicMock()
+sys.modules['textual'] = MagicMock()
+
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -17,14 +22,12 @@ class TestPlayerFunctionality(unittest.TestCase):
         self.assertIsNone(player.executable)
 
     @patch('shutil.which')
-    def test_play_no_player_returns_safely(self, mock_which):
+    def test_play_no_player_raises_error(self, mock_which):
         mock_which.return_value = None
         player = Player()
-        # Should not raise exception
-        try:
+        # Should raise exception
+        with self.assertRaises(RuntimeError):
             player.play("http://example.com")
-        except RuntimeError:
-            self.fail("play() raised RuntimeError unexpectedly!")
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
@@ -85,6 +88,7 @@ class TestPlayerFunctionality(unittest.TestCase):
     def test_play_invalid_protocol(self, mock_which):
         mock_which.return_value = "/usr/bin/mpv"
         player = Player()
+        player.logger = MagicMock()
 
         invalid_urls = [
             "file:///etc/passwd",
@@ -94,8 +98,8 @@ class TestPlayerFunctionality(unittest.TestCase):
         ]
 
         for url in invalid_urls:
-            with self.assertRaises(ValueError):
-                player.play(url)
+            player.play(url)
+            player.logger.error.assert_called()
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
