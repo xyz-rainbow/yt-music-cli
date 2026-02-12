@@ -27,6 +27,9 @@ class AuthManager:
 
     def is_authenticated(self) -> bool:
         """Check if we have valid credentials stored and can login."""
+        if self._api is not None:
+            return True
+
         if os.path.exists(CREDENTIALS_FILE):
             try:
                 self.login()
