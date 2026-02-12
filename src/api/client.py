@@ -1,15 +1,44 @@
+import logging
+
+from ytmusicapi import YTMusic
+
 from src.api.auth import AuthManager
+
+logger = logging.getLogger(__name__)
+
 
 class YTMusicClient:
     def __init__(self, auth_manager: AuthManager):
         self.auth_manager = auth_manager
+        self._public_api: YTMusic | None = None
 
     @property
     def api(self):
         return self.auth_manager.api
 
-    def search_songs(self, query, limit=10):
-        return self.api.search(query, filter="songs", limit=limit)
+    @property
+    def public_api(self) -> YTMusic:
+        """Unauthenticated YTMusic instance used as fallback for search."""
+        if self._public_api is None:
+            self._public_api = YTMusic()
+        return self._public_api
+
+    def search_songs(self, query, limit=15):
+        """Search for songs. Falls back to unauthenticated search on OAuth 400 errors."""
+        try:
+            results = self.api.search(query, limit=limit)
+            return [r for r in results if r.get("resultType") in ["song", "video"]]
+        except Exception as e:
+            # Known ytmusicapi OAuth bug: TV/limited-input clients get 400 on search
+            if "400" in str(e):
+                logger.warning("OAuth search returned 400, falling back to public search")
+                try:
+                    results = self.public_api.search(query, limit=limit)
+                    return [r for r in results if r.get("resultType") in ["song", "video"]]
+                except Exception as fallback_err:
+                    logger.error(f"Public search also failed: {fallback_err}")
+                    raise fallback_err
+            raise
 
     def get_library_playlists(self):
         return self.api.get_library_playlists()

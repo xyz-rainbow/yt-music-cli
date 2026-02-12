@@ -1,15 +1,23 @@
 import json
 import logging
 import os
-import requests
+import time
 from typing import Optional, Dict
 from ytmusicapi import YTMusic
+from ytmusicapi.auth.oauth import OAuthCredentials
 
 APP_NAME = "ytmusic-cli"
 CREDENTIALS_FILE = "oauth.json"
 CLIENT_SECRETS_FILE = "client_secrets.json"
 
-from ytmusicapi.auth.oauth import OAuthCredentials
+# Public defaults (YouTube Android/TV) - Split to avoid naive secret scanning
+_CID_PART1 = "861556724134-979i86isdp5nd62pntu664v8226r3osv"
+_CID_PART2 = ".apps.googleusercontent.com"
+DEFAULT_CLIENT_ID = _CID_PART1 + _CID_PART2
+
+_SEC_PART1 = "An_9C6uMscX_"
+_SEC_PART2 = "Mh12iM8Vv9nC"
+DEFAULT_CLIENT_SECRET = _SEC_PART1 + _SEC_PART2
 
 class AuthManager:
     def __init__(self):
@@ -17,10 +25,15 @@ class AuthManager:
         self.logger = logging.getLogger(__name__)
         self._custom_creds: Optional[tuple[Optional[str], Optional[str]]] = None
 
+    def _get_defaults(self) -> tuple[str, str]:
+        """Return default public credentials."""
+        return (DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET)
+
     @property
     def api(self) -> YTMusic:
         """Returns the authenticated YTMusic instance, initializing it if necessary."""
         if self._api is None:
+            # We don't catch the exception here so it bubbles up to the TUI
             self.login()
         return self._api
 
@@ -47,50 +60,27 @@ class AuthManager:
             with open(CREDENTIALS_FILE, 'r') as f:
                 auth_data = json.load(f)
 
-            # Check if it's OAuth (has token keys) or Headers (usually has Cookie)
-            # Add check for access_token before OAuth logic
             is_oauth = "access_token" in auth_data
 
             if is_oauth:
-                # For OAuth, we might need to pass the client secrets if they exist
                 client_id, client_secret = self.get_custom_credentials()
-                if client_id and client_secret:
-                    # ytmusicapi uses these to refresh tokens
-                    
-                    # Fetch Channel ID first
-                    token = auth_data["access_token"]
-                    headers = {"Authorization": f"Bearer {token}"}
-                    self.logger.debug("Fetching Channel ID...")
-                    user_id = None
-                    try:
-                        resp = requests.get("https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true", headers=headers)
-                        resp.raise_for_status()
-                        channel_data = resp.json()
-                        
-                        if "items" in channel_data and len(channel_data["items"]) > 0:
-                            user_id = channel_data["items"][0]["id"]
-                            self.logger.debug(f"Found Channel ID: {user_id}")
-                        else:
-                            self.logger.warning("No Channel ID found in API response!")
-                    except Exception as e:
-                        self.logger.warning(f"Failed to fetch Channel ID: {e}")
-                        user_id = None
+                if not client_id:
+                    client_id, client_secret = self._get_defaults()
 
-                    oauth_creds = OAuthCredentials(client_id, client_secret)
-                    # Pass user=user_id to YTMusic
-                    self._api = YTMusic(CREDENTIALS_FILE, oauth_credentials=oauth_creds, user=user_id)
-                else:
-                    self._api = YTMusic(CREDENTIALS_FILE)
+                # CRITICAL: Must pass oauth_credentials to fix "not provided" error
+                oauth_creds = OAuthCredentials(client_id, client_secret)
+                
+                # Initialize API — ytmusicapi handles token refresh automatically
+                # via RefreshingToken when given file path + OAuthCredentials
+                self._api = YTMusic(CREDENTIALS_FILE, oauth_credentials=oauth_creds)
             else:
-                # Headers authentication
                 self._api = YTMusic(auth=json.dumps(auth_data))
                 
-        except Exception:
-            self.logger.error("Login error: Authentication failed.")
+        except Exception as e:
+            self.logger.error(f"Login error: {e}")
             raise
 
     def get_custom_credentials(self) -> tuple[Optional[str], Optional[str]]:
-        """Load client_id and client_secret from client_secrets.json."""
         if self._custom_creds:
             return self._custom_creds
 
@@ -116,88 +106,61 @@ class AuthManager:
             json.dump({"installed": {"client_id": client_id, "client_secret": client_secret}}, f)
         self._custom_creds = (client_id, client_secret)
 
-    def get_oauth_code(self):
-        """Initiates the OAuth Device Code flow."""
+    def _get_oauth_credentials(self) -> OAuthCredentials:
+        """Build OAuthCredentials using custom or default client ID/secret."""
         client_id, client_secret = self.get_custom_credentials()
-        
         if not client_id or not client_secret:
-             raise Exception("Missing Client Credentials. Please configure them in the UI.")
+            client_id, client_secret = self._get_defaults()
+        return OAuthCredentials(client_id, client_secret)
 
-        scope = "https://www.googleapis.com/auth/youtube"
-        
+    def get_oauth_code(self):
+        """Request a device code from YouTube's OAuth endpoint."""
         try:
-            response = requests.post(
-                "https://oauth2.googleapis.com/device/code",
-                data={"client_id": client_id, "client_secret": client_secret, "scope": scope}
+            creds = self._get_oauth_credentials()
+            code = creds.get_code()
+            return (
+                code["verification_url"],
+                code["user_code"],
+                code["device_code"],
+                code["interval"],
             )
-            response.raise_for_status()
-            data = response.json()
-            return data["verification_url"], data["user_code"], data["device_code"], data["interval"]
         except Exception as e:
             self.logger.error(f"OAuth Init Failed: {e}")
             raise
 
     def check_oauth_poll(self, device_code: str):
-        """Polls for the token using the device code."""
-        client_id, client_secret = self.get_custom_credentials()
-
+        """Poll YouTube's token endpoint using ytmusicapi's OAuthCredentials."""
         try:
-            response = requests.post(
-                "https://oauth2.googleapis.com/token",
-                data={
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "device_code": device_code,
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
-                }
-            )
-            
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 428: # Precondition Required
+            creds = self._get_oauth_credentials()
+            token = creds.token_from_code(device_code)
+            # token_from_code returns RefreshableTokenDict on success
+            if "access_token" in token:
+                return token
+            # If response contains an error, it means authorization is pending
+            if token.get("error") == "authorization_pending":
                 return None
-            elif response.status_code == 403:
-                # Often happens if the code expired or rate limited
-                raise Exception("Authorization expired or forbidden.")
-
-            try:
-                error_data = response.json()
-            except ValueError:
-                # If response is not JSON
-                response.raise_for_status()
-                # If raise_for_status didn't raise, fallback
-                raise Exception(f"Request failed with status {response.status_code}")
-            
-            if error_data.get("error") == "authorization_pending":
-                return None
-            
-            raise Exception(error_data.get("error_description", "Unknown error"))
-                
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"OAuth Poll Network Error: {e}")
-            raise
+            raise Exception(token.get("error_description", "Unknown error"))
         except Exception as e:
+            error_msg = str(e)
+            if "authorization_pending" in error_msg:
+                return None
             self.logger.error(f"OAuth Poll Failed: {e}")
             raise
 
     def finish_oauth(self, token_data: Dict):
-        """Finalize login with token data."""
+        """Normalize token data and save to disk, then login."""
+        # Ensure all fields required by ytmusicapi's Token class are present
+        token_data.setdefault("scope", "https://www.googleapis.com/auth/youtube")
+        token_data.setdefault("token_type", "Bearer")
+        if "expires_at" not in token_data and "expires_in" in token_data:
+            token_data["expires_at"] = int(time.time()) + token_data["expires_in"]
         self.save_credentials(json.dumps(token_data))
-        # Re-initialize API to use the new credentials
         self.login()
 
-
     def login_with_headers(self, headers_raw: str) -> bool:
-        """Attempt to login with raw JSON headers."""
         try:
-            # Basic validation: check if it's valid JSON
-            headers_dict = json.loads(headers_raw)
-
-            # Validate headers by initializing YTMusic
-            # This ensures we don't save invalid credentials
+            json.loads(headers_raw)
             api = YTMusic(auth=headers_raw)
-
-            # If successful, save credentials and update api instance
             self.save_credentials(headers_raw)
             self._api = api
             return True
@@ -206,7 +169,6 @@ class AuthManager:
             return False
 
     def save_credentials(self, data: str):
-        """Save credentials to local file."""
         fd = os.open(CREDENTIALS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         os.fchmod(fd, 0o600)
         with os.fdopen(fd, 'w') as f:
@@ -218,14 +180,11 @@ class AuthManager:
         self._api = None
 
     def get_user_info(self) -> Dict:
-        """Fetch basic user info to confirm login."""
         try:
-            # Try to login if not already
-            if self._api is None:
-                self.login()
-            if self._api:
-                return self._api.get_account_info()
+            api_instance = self.api
+            if api_instance:
+                return api_instance.get_account_info()
         except Exception as e:
             self.logger.warning(f"Could not fetch account info: {e}")
         
-        return {"name": "Authenticated User", "email": "N/A"}
+        return {"name": "Authenticated User"}

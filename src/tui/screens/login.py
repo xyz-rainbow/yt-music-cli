@@ -72,12 +72,6 @@ class LoginScreen(Screen):
             # OAuth Section
             yield Button("Login with Google", id="btn-oauth")
             
-            with Vertical(id="custom-api-container", classes="hidden"):
-                yield Label("Setup Custom API Credentials", classes="step-label")
-                yield Input(placeholder="Client ID", id="input-client-id")
-                yield Input(placeholder="Client Secret", id="input-client-secret", password=True)
-                yield Button("Save & Login", id="btn-save-custom", variant="warning")
-
             with Vertical(id="oauth-container", classes="hidden"):
                 yield Label("1. Go to URL:", classes="step-label")
                 yield Input(id="url-copy", classes="copy-field", value="", disabled=True)
@@ -85,7 +79,6 @@ class LoginScreen(Screen):
                 yield Input(id="user-code", classes="copy-field", value="", disabled=True)
                 yield Label("Waiting for approval...", id="status-label")
 
-            yield Button("Configure API Keys", id="btn-config")
             yield Button("Paste Headers (Advanced)", id="btn-manual-toggle")
             yield Input(placeholder="Paste JSON Headers here...", id="input-headers", classes="hidden")
             yield Button("Submit Headers", id="btn-submit", classes="hidden")
@@ -97,30 +90,7 @@ class LoginScreen(Screen):
         auth = self.app.auth
         
         if event.button.id == "btn-oauth":
-            # Check if we have custom credentials saved or loaded
-            if auth.has_custom_credentials():
-                 self.start_oauth_flow(auth)
-            else:
-                 self.query_one("#custom-api-container").remove_class("hidden")
-                 self.query_one("#btn-oauth").add_class("hidden")
-                 self.query_one("#btn-config").add_class("hidden")
-                 self.app.notify("Please enter your Google Cloud Client ID/Secret first.")
-
-        elif event.button.id == "btn-config":
-             self.query_one("#custom-api-container").remove_class("hidden")
-             self.query_one("#btn-oauth").add_class("hidden")
-             self.query_one("#btn-config").add_class("hidden")
-             
-        elif event.button.id == "btn-save-custom":
-            client_id = self.query_one("#input-client-id").value
-            client_secret = self.query_one("#input-client-secret").value
-            
-            if client_id and client_secret:
-                auth.save_custom_credentials(client_id, client_secret)
-                self.app.notify("Credentials Saved!")
-                self.start_oauth_flow(auth)
-            else:
-                self.query_one("#error-label").update("Client ID and Secret required.")
+            self.start_oauth_flow(auth)
 
         elif event.button.id == "btn-manual-toggle":
             self.query_one("#input-headers").remove_class("hidden")
