@@ -260,9 +260,6 @@ class PlayerScreen(Screen):
     def on_key(self, event):
         """Manejar navegación y foco automático del buscador."""
         # Atajo global de Play/Pause con Espacio
-    def on_key(self, event):
-        """Manejar navegación y foco automático del buscador."""
-        # Atajo global de Play/Pause con Espacio
         if event.key == "space":
             # Si estamos en el input, permitimos escribir espacios
             if self.focused and self.focused.id == "search-input":
