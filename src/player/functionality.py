@@ -29,13 +29,22 @@ class Player:
         if not self.executable:
             raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
 
+        # Security check: Validate protocol
+        if not url.lower().startswith(('http://', 'https://')):
+            raise ValueError("Invalid URL protocol. Only http/https supported.")
+
         self.stop() # Stop previous
 
         self.current_url = url
         self._paused = False
 
         try:
-            cmd = [self.executable] + self.args + [url]
+            # Use -- to prevent argument injection in mpv
+            if "mpv" in self.executable:
+                cmd = [self.executable] + self.args + ["--", url]
+            else:
+                cmd = [self.executable] + self.args + [url]
+
             # Start process non-blocking
             self.process = subprocess.Popen(
                 cmd,
