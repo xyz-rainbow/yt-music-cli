@@ -3,9 +3,11 @@ import sys
 import logging
 from src.tui.app import YTMusicApp
 
+from src.config import get_data_dir
+
 # Configurar logging para depuración
 logging.basicConfig(
-    filename='debug.log',
+    filename=get_data_dir() / 'debug.log',
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )

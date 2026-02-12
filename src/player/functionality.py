@@ -7,13 +7,14 @@ import socket
 import time
 import threading
 import signal
+from src.config import get_config_dir, get_data_dir
 
 class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.process = None
         self.current_url = None
-        self.ipc_path = "/tmp/ytmusic-cli-mpv.sock"
+        self.ipc_path = f"/tmp/ytmusic-cli-mpv-{os.getuid()}.sock"
         self._paused = False
         self._lock = threading.RLock()
         
@@ -24,7 +25,8 @@ class Player:
             'no_warnings': True,
             'extract_flat': False,
         }
-        self.auth_file = "oauth.json" # Match AuthManager.CREDENTIALS_FILE
+
+        self.auth_file = str(get_config_dir() / "oauth.json")
         
         if shutil.which("mpv"):
             self.executable = "mpv"
@@ -80,7 +82,7 @@ class Player:
             cmd = [self.executable] + self.args
             
             # Use a log file for debugging playback issues
-            log_file = open("player.log", "a")
+            log_file = open(get_data_dir() / "player.log", "a")
             try:
                 self.process = subprocess.Popen(
                     cmd,

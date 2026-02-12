@@ -12,9 +12,12 @@ try:
 except ImportError:
     InstalledAppFlow = None
 
+from src.config import get_config_dir
+
 APP_NAME = "ytmusic-cli"
-CREDENTIALS_FILE = "oauth.json"
-CLIENT_SECRETS_FILE = "client_secrets.json"
+CONFIG_DIR = get_config_dir()
+CREDENTIALS_FILE = str(CONFIG_DIR / "oauth.json")
+CLIENT_SECRETS_FILE = str(CONFIG_DIR / "client_secrets.json")
 
 # Public defaults (YouTube Android/TV) - Restricted for some, but used as fallback
 _CID_PART1 = "861556724134-979i86isdp5nd62pntu664v8226r3osv"

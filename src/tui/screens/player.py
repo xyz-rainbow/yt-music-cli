@@ -14,6 +14,7 @@ from textual.widgets import Input, DataTable, Button, Label, Static, ProgressBar
 from textual.containers import Container, Horizontal, Vertical
 from src.player.functionality import Player
 from src.tui.utils import copy_to_clipboard
+from src.config import get_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ class PlayerScreen(Screen):
         self.results_data = {}
         self.queued_songs = []
         self.session_liked_songs = set()
-        self.favorites_file = "favorites.json"
+        self.favorites_file = str(get_data_dir() / "favorites.json")
         self.local_favorites = self.load_favorites()
         self.current_track_id = None
         self._current_volume = 100
