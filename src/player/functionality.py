@@ -106,6 +106,10 @@ class Player:
 
     def play(self, url: str):
         """Play a stream URL."""
+        if not url.lower().startswith(("http://", "https://")):
+            self.logger.error(f"Security blocked: Invalid URL scheme: {repr(url)}")
+            return
+
         if not self.executable:
             return
 
