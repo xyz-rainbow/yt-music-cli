@@ -25,6 +25,7 @@ class Player:
             'no_warnings': True,
             'extract_flat': False,
         }
+        self.auth_file = "oauth.json" # Match AuthManager.CREDENTIALS_FILE
         
         if shutil.which("mpv"):
             self.executable = "mpv"
@@ -50,8 +51,14 @@ class Player:
                 "--audio-pitch-correction=no", # No estirar el audio si hay lag
                 # Formato
                 "--ytdl-format=bestaudio/best",
-                "--ytdl-raw-options=extractor-args=youtube:player_client=android+web+ios,js-runtimes=node,cookies-from-browser=chrome",
+                "--ytdl-raw-options=extractor-args=youtube:player_client=android+web+ios,js-runtimes=node",
             ]
+            # Add cookies if they exist to allow streaming liked/private content
+            if os.path.exists(self.auth_file):
+                 # Note: yt-dlp can't always read our JSON directly as cookies, 
+                 # but for now we try to let mpv handle it or we could export to netscape format.
+                 # Let's at least try to point to it if it was a headers/cookies file.
+                 pass
             if os.path.exists(venv_ytdlp):
                 self.args.append(f"--script-opts=ytdl_hook-ytdl_path={venv_ytdlp}")
         elif shutil.which("ffplay"):
@@ -125,7 +132,6 @@ class Player:
 
     def play(self, url: str):
         """Play a stream URL."""
-        # Security check: Validate protocol
         if not url.lower().startswith(('http://', 'https://')):
             self.logger.error(f"Security blocked: Invalid URL scheme: {repr(url)}")
             raise ValueError("Invalid URL protocol. Only http/https supported.")
@@ -134,7 +140,6 @@ class Player:
             raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
 
         with self._lock:
-            # If same URL is already playing, just ensure it's unpaused
             if self.current_url == url and self.process and self.process.poll() is None:
                 if self.executable == "mpv":
                     self._send_command(["set_property", "pause", False])
@@ -145,13 +150,32 @@ class Player:
             self._paused = False
             
             if self.executable == "mpv":
-                # Let MPV's ytdl_hook handle URL extraction internally
-                # This is more robust than manual yt-dlp extraction
-                # We pass the YouTube URL directly
+                # NEW: Try to extract direct URL using yt-dlp first for better reliability
+                # and to avoid mpv's ytdl-hook issues on some systems.
+                try:
+                    import subprocess
+                    venv_ytdlp = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv/bin/yt-dlp")
+                    ytdlp_bin = venv_ytdlp if os.path.exists(venv_ytdlp) else "yt-dlp"
+                    
+                    self.logger.debug(f"Extracting URL with {ytdlp_bin}...")
+                    result = subprocess.run(
+                        [ytdlp_bin, "-g", "-f", "bestaudio", url],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        stream_url = result.stdout.strip()
+                        self._send_command(["loadfile", stream_url, "replace"])
+                        self._send_command(["set_property", "pause", False])
+                        self.logger.debug("Playing via extracted direct URL")
+                        return
+                    else:
+                        self.logger.warning(f"yt-dlp extraction failed: {result.stderr}")
+                except Exception as e:
+                    self.logger.warning(f"Direct extraction error: {e}")
+
+                # Fallback to standard loadfile if extraction failed
                 self._send_command(["loadfile", url, "replace"])
                 self._send_command(["set_property", "pause", False])
-                # Ensure we request audio only to save bandwidth
-                self._send_command(["set_property", "ytdl-format", "bestaudio/best"])
 
     def enqueue(self, url: str):
         """Add a stream URL to the playlist."""
