@@ -102,6 +102,32 @@ class PlayerScreen(Screen):
         content-align: center middle;
         text-align: center;
     }
+    #empty-state {
+        height: 1fr;
+        align: center middle;
+    }
+    .empty-icon {
+        text-style: bold;
+        color: $accent;
+        height: auto;
+        content-align: center middle;
+        text-align: center;
+        padding-bottom: 1;
+    }
+    .empty-title {
+        text-style: bold;
+        color: $primary;
+        content-align: center middle;
+        text-align: center;
+    }
+    .empty-subtitle {
+        color: $text;
+        content-align: center middle;
+        text-align: center;
+    }
+    .hidden {
+        display: none;
+    }
     """
 
     def compose(self):
@@ -115,7 +141,16 @@ class PlayerScreen(Screen):
             ),
             Vertical(
                 Input(placeholder="Search songs...", id="search-input"),
-                DataTable(id="results-table"),
+                Container(
+                    Container(
+                        Label("🎵", classes="empty-icon"),
+                        Label("Start Typing to Search", classes="empty-title"),
+                        Label("Find your favorite songs, artists, and albums.", classes="empty-subtitle"),
+                        id="empty-state"
+                    ),
+                    DataTable(id="results-table", classes="hidden"),
+                    id="results-container"
+                ),
                 id="main-content"
             ),
             Vertical(
@@ -199,6 +234,11 @@ class PlayerScreen(Screen):
 
     def populate_table(self, results):
         table = self.query_one("#results-table")
+        empty_state = self.query_one("#empty-state")
+
+        table.remove_class("hidden")
+        empty_state.add_class("hidden")
+
         table.clear()
         for song in results:
             duration = song.get("duration", "N/A")
@@ -273,6 +313,11 @@ class PlayerScreen(Screen):
             query = event.value
             if len(query) > 2:  # Only search if at least 3 characters
                 self.run_search(query)
+            elif len(query) <= 2:
+                # Show empty state for short queries (unless we decide otherwise)
+                # But mainly if it's cleared or very short, we reset to empty state.
+                self.query_one("#results-table").add_class("hidden")
+                self.query_one("#empty-state").remove_class("hidden")
 
     def on_key(self, event):
         """Handle navigation and auto-focus of search."""
@@ -294,10 +339,14 @@ class PlayerScreen(Screen):
         # Navigation from search to table
         if self.focused and self.focused.id == "search-input":
             if event.key == "down":
-                self.query_one("#results-table").focus()
+                table = self.query_one("#results-table")
+                if not table.has_class("hidden"):
+                    table.focus()
                 event.prevent_default()
             elif event.key == "escape":
-                self.query_one("#results-table").focus()
+                table = self.query_one("#results-table")
+                if not table.has_class("hidden"):
+                    table.focus()
                 event.prevent_default()
 
     def on_input_submitted(self, event: Input.Submitted):
