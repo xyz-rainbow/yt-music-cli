@@ -7,7 +7,7 @@ import socket
 import time
 import threading
 import signal
-import yt_dlp
+import signal
 
 class Player:
     def __init__(self):
@@ -37,8 +37,10 @@ class Player:
                 "--idle=yes", 
                 f"--input-ipc-server={self.ipc_path}",
                 "--cache=yes",
-                "--demuxer-max-bytes=500KiB", # Buffer pequeño para inicio rápido
-                "--demuxer-readahead-secs=1",
+                "--demuxer-max-bytes=2MiB", 
+                "--demuxer-readahead-secs=10",
+                # Corregido: Usamos comillas para los argumentos internos de yt-dlp y evitamos caracteres que rompan el parser
+                "--ytdl-raw-options=extractor-args=youtube:player_client=android+web+ios,js-runtimes=node,cookies-from-browser=chrome",
             ]
             if os.path.exists(venv_ytdlp):
                 self.args.append(f"--script-opts=ytdl_hook-ytdl_path={venv_ytdlp}")
@@ -52,6 +54,7 @@ class Player:
     def _ensure_process(self):
         """Ensure mpv is running."""
         if self.executable == "mpv" and (not self.process or self.process.poll() is not None):
+            self.logger.debug("Starting mpv process...")
             if os.path.exists(self.ipc_path):
                 try:
                     os.remove(self.ipc_path)
@@ -59,30 +62,41 @@ class Player:
                     pass
             
             cmd = [self.executable] + self.args
-            # IMPORTANTE: start_new_session=True desacopla mpv de la terminal actual
-            # stdin=subprocess.DEVNULL evita que mpv robe inputs del teclado
-            self.process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+            
+            # Use a log file for debugging playback issues
+            log_file = open("player.log", "a")
+            try:
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    stdout=log_file,
+                    stderr=log_file,
+                    start_new_session=True
+                )
+                self.logger.debug(f"mpv started with PID {self.process.pid}")
+            except Exception as e:
+                self.logger.error(f"Failed to start mpv: {e}")
+                return
+
             # Give it a moment to create the socket
-            for _ in range(10):
+            for i in range(20):
                 if os.path.exists(self.ipc_path):
+                    self.logger.debug(f"IPC socket found after {i*0.1:.1f}s")
                     break
                 time.sleep(0.1)
+            else:
+                self.logger.error("MPV IPC socket not found after timeout")
 
     def _send_command(self, command):
         """Send a JSON command and close socket immediately."""
         if not os.path.exists(self.ipc_path):
+            self.logger.warning(f"IPC socket {self.ipc_path} missing for command {command[0]}")
             return None
         
         try:
             # Creamos el socket solo para este comando y lo cerramos al instante
             client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client.settimeout(0.01) # 10ms máximo
+            client.settimeout(0.1) # Increased timeout slightly for reliability
             client.connect(self.ipc_path)
             msg = json.dumps({"command": command}) + "\n"
             client.sendall(msg.encode())
@@ -94,19 +108,10 @@ class Player:
                     return json.loads(response.decode().split("\n")[0])
             else:
                 client.close()
-        except:
-            pass # Ignorar errores para mantener la fluidez de la GUI
+        except Exception as e:
+            self.logger.error(f"IPC error sending {command[0]}: {e}")
         return None
 
-    def _get_stream_url(self, youtube_url: str) -> str:
-        """Extract direct audio stream URL using yt-dlp."""
-        try:
-            with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
-                info = ydl.extract_info(youtube_url, download=False)
-                return info['url']
-        except Exception as e:
-            self.logger.error(f"Failed to extract stream URL: {e}")
-            return youtube_url
 
     def play(self, url: str):
         """Play a stream URL."""
@@ -115,37 +120,56 @@ class Player:
             self.logger.error(f"Security blocked: Invalid URL scheme: {repr(url)}")
             raise ValueError("Invalid URL protocol. Only http/https supported.")
 
-
         if not self.executable:
             raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
 
         with self._lock:
-            self.stop() # Stop previous
+            # If same URL is already playing, just ensure it's unpaused
+            if self.current_url == url and self.process and self.process.poll() is None:
+                if self.executable == "mpv":
+                    self._send_command(["set_property", "pause", False])
+                return
 
             self._ensure_process()
             self.current_url = url
             self._paused = False
             
             if self.executable == "mpv":
-                # Usamos flags de carga rápida con IPC
-                # Note: IPC commands are safe from argument injection
+                # Let MPV's ytdl_hook handle URL extraction internally
+                # This is more robust than manual yt-dlp extraction
+                # We pass the YouTube URL directly
                 self._send_command(["loadfile", url, "replace"])
                 self._send_command(["set_property", "pause", False])
-                self._send_command(["set_property", "ytdl-format", "bestaudio"])
-            else:
-                # Fallback for ffplay - use -- to prevent argument injection
-                cmd = [self.executable] + self.args + ["--", url]
-                try:
-                    self.process = subprocess.Popen(
-                        cmd,
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        start_new_session=True
-                    )
-                except Exception as e:
-                    self.logger.error(f"Playback failed: {e}")
-                    raise
+                # Ensure we request audio only to save bandwidth
+                self._send_command(["set_property", "ytdl-format", "bestaudio/best"])
+
+    def enqueue(self, url: str):
+        """Add a stream URL to the playlist."""
+        if not url.lower().startswith(('http://', 'https://')):
+            return
+
+        with self._lock:
+            self._ensure_process()
+            if self.executable == "mpv":
+                self._send_command(["loadfile", url, "append-play"])
+
+    def remove_from_queue(self, url: str) -> bool:
+        """Remove a specific URL from the mpv playlist. Returns True if found."""
+        if self.executable != "mpv":
+            return False
+
+        with self._lock:
+            playlist_resp = self._send_command(["get_property", "playlist"])
+            if not playlist_resp or "data" not in playlist_resp:
+                return False
+
+            playlist = playlist_resp["data"]
+            # Find the index of the item with the matching filename (URL)
+            for i, item in enumerate(playlist):
+                if item.get("filename") == url:
+                    self._send_command(["playlist-remove", i])
+                    return True
+        return False
 
 
     def pause(self):
@@ -174,9 +198,12 @@ class Player:
     def toggle_pause(self):
         """Toggle pause."""
         with self._lock:
+            self._ensure_process()
             if self.executable == "mpv":
-                # 'cycle pause' es atómico y mucho más rápido que preguntar y luego setear
+                # 'cycle pause' is atomic and faster
                 self._send_command(["cycle", "pause"])
+            else:
+                self.pause()
 
     def stop(self):
         """Stop playback and kill process."""
@@ -201,12 +228,20 @@ class Player:
     def set_volume(self, volume: int):
         """Set volume (0-100)."""
         if not (0 <= volume <= 100):
-            raise ValueError("Volume must be between 0 and 100")
+            return
 
         if self.executable == "mpv":
             self._send_command(["set_property", "volume", volume])
         else:
             self.logger.warning(f"Volume control not supported for {self.executable}")
+
+    def get_volume(self) -> int:
+        """Get current volume (0-100)."""
+        if self.executable == "mpv":
+            resp = self._send_command(["get_property", "volume"])
+            if resp and "data" in resp:
+                return int(resp["data"])
+        return 100
             
     def get_status(self) -> dict:
         """Get current playback status."""
@@ -234,3 +269,21 @@ class Player:
                 "paused": self._paused,
                 "state": state
             }
+
+    def seek(self, seconds: int):
+        """Seek forward or backward by seconds."""
+        if self.executable == "mpv":
+            # seconds can be positive (forward) or negative (backward)
+            self._send_command(["seek", seconds, "relative"])
+        else:
+            self.logger.warning(f"Seeking not supported for {self.executable}")
+
+    def skip_next(self):
+        """Skip to the next song in the playlist."""
+        if self.executable == "mpv":
+            self._send_command(["playlist-next"])
+
+    def skip_prev(self):
+        """Skip to the previous song in the playlist."""
+        if self.executable == "mpv":
+            self._send_command(["playlist-prev"])

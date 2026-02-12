@@ -1,44 +1,44 @@
+/* Main Red Accent */
+$accent: #FF3333;
+$accent-darken-1: #CC0000;
+$accent-lighten-1: #FF6666;
+
+/* Primary Red */
+$primary: #FF0000;
+$primary-darken-1: #CC0000;
+$primary-lighten-1: #FF6666;
+
+/* Secondary Purple */
+$secondary: #9D00FF;
+$secondary-darken-1: #6A00AA;
+$secondary-lighten-1: #B84DFF;
+
+/* Lime Green Success */
+$success: #32CD32;
+$success-darken-1: #008000;
+$success-lighten-1: #66FF66;
+
+/* Cyan Info */
+$info: #00FFFF;
+$info-darken-1: #008B8B;
+$info-lighten-1: #E0FFFF;
+
+/* Red Error */
+$error: #FF0000;
+$error-darken-1: #CC0000;
+$error-lighten-1: #FF6666;
+
+/* Yellow Warning */
+$warning: #FFFF00;
+$warning-darken-1: #CCCC00;
+$warning-lighten-1: #FFFF66;
+
+/* Keep surface dark */
+$surface: #121212;
+$surface-darken-1: #000000;
+$surface-lighten-1: #1E1E1E;
+
 Screen {
-    /* Main Red Accent */
-    $accent: #FF3333;
-    $accent-darken-1: #CC0000;
-    $accent-lighten-1: #FF6666;
-
-    /* Primary Red */
-    $primary: #FF0000;
-    $primary-darken-1: #CC0000;
-    $primary-lighten-1: #FF6666;
-
-    /* Secondary Purple */
-    $secondary: #9D00FF;
-    $secondary-darken-1: #6A00AA;
-    $secondary-lighten-1: #B84DFF;
-
-    /* Lime Green Success */
-    $success: #32CD32;
-    $success-darken-1: #008000;
-    $success-lighten-1: #66FF66;
-
-    /* Cyan Info */
-    $info: #00FFFF;
-    $info-darken-1: #008B8B;
-    $info-lighten-1: #E0FFFF;
-
-    /* Red Error */
-    $error: #FF0000;
-    $error-darken-1: #CC0000;
-    $error-lighten-1: #FF6666;
-
-    /* Yellow Warning */
-    $warning: #FFFF00;
-    $warning-darken-1: #CCCC00;
-    $warning-lighten-1: #FFFF66;
-
-    /* Keep surface dark */
-    $surface: #121212;
-    $surface-darken-1: #000000;
-    $surface-lighten-1: #1E1E1E;
-
     background: $surface;
     color: $text;
 }

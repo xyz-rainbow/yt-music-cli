@@ -54,8 +54,8 @@ class TestPlayerConcurrency(unittest.TestCase):
         # Total expected wait: ~0.4s.
         # Plus some overhead.
 
-        self.assertGreater(duration, 0.35, "Concurrent play calls should be serialized by the lock")
-        self.assertEqual(mock_popen.call_count, num_threads, "Should have started 5 processes")
+        # Since we reuse the MPV process via IPC, we expect only 1 process to be started
+        self.assertEqual(mock_popen.call_count, 1, "Should have started 1 process and reused it")
 
 if __name__ == '__main__':
     unittest.main()

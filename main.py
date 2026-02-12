@@ -1,6 +1,14 @@
 import signal
 import sys
+import logging
 from src.tui.app import YTMusicApp
+
+# Configurar logging para depuración
+logging.basicConfig(
+    filename='debug.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def signal_handler(sig, frame):
     """Manejador para cerrar la app inmediatamente con Ctrl+C."""

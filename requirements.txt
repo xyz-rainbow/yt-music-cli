@@ -5,3 +5,4 @@ pyperclip
 Pillow
 httpx
 requests
+curl_cffi

@@ -1,7 +1,7 @@
 /* Base styles for YT-Music CLI */
 
 Screen {
-    background: $surface;
+    background: transparent;
     color: $text;
 }
 
@@ -19,12 +19,12 @@ Screen {
 }
 
 #sidebar {
-    background: $surface-darken-1;
+    background: rgba(0, 0, 0, 0.3); /* Semi-transparent black */
     border-right: solid $accent;
 }
 
 #now-playing {
-    background: $surface-darken-1;
+    background: rgba(0, 0, 0, 0.3); /* Semi-transparent black */
     border-left: solid $accent;
     padding: 1;
 }
@@ -52,7 +52,7 @@ Screen {
     border: double $accent;
     padding: 2;
     margin: 2;
-    background: $surface;
+    background: transparent;
 }
 
 .step-label {
@@ -62,6 +62,6 @@ Screen {
 }
 
 .copy-field {
-    background: $surface-lighten-1;
+    background: rgba(255, 255, 255, 0.1);
     color: $accent;
 }

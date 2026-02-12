@@ -1,6 +1,6 @@
 from textual.screen import Screen
 from textual.widgets import Button, Input, Label
-from textual.containers import Container
+from textual.containers import Vertical
 from textual import work
 from src.api.auth import AuthManager
 import time
@@ -13,62 +13,84 @@ class LoginScreen(Screen):
     CSS = """
     LoginScreen {
         align: center middle;
+        background: transparent;
     }
     #login-container {
         width: 60;
         height: auto;
-        border: solid $accent;
-        padding: 2;
-        background: $surface;
+        border: tall $accent;
+        padding: 1 4;
+        background: transparent;
+    }
+    #title {
+        text-style: bold;
+        color: $accent;
+        text-align: center;
+        width: 100%;
+    }
+    .subtitle {
+        text-align: center;
+        width: 100%;
+        color: $text-muted;
+        margin-bottom: 1;
     }
     Button {
         width: 100%;
         margin-top: 1;
+        height: 3;
+        text-style: bold;
+    }
+    #btn-oauth {
+        background: #2196F3;
+        color: white;
+    }
+    #btn-submit {
+        background: #4CAF50;
+        color: white;
     }
     Input {
         margin-top: 1;
+        border: tall $primary;
     }
     #error-label {
         color: $error;
         text-align: center;
+        margin-top: 1;
+    }
+    .step-label {
+        color: $accent;
+        margin-top: 1;
+        text-style: bold;
     }
     """
 
     def compose(self):
-        yield Container(
-            Label("Welcome to Youtube Music CLI", id="title"),
-            Label("Please Login", classes="subtitle"),
+        with Vertical(id="login-container"):
+            yield Label("YOUTUBE MUSIC CLI", id="title")
+            yield Label("Authentication Required", classes="subtitle")
             
             # OAuth Section
-            Button("Login with Google", id="btn-oauth", variant="primary"),
+            yield Button("Login with Google", id="btn-oauth")
             
-            Container(
-                Label("Setup Custom API Credentials", classes="step-label"),
-                Input(placeholder="Client ID", id="input-client-id"),
-                Input(placeholder="Client Secret", id="input-client-secret", password=True),
-                Button("Save & Login", id="btn-save-custom", variant="warning"),
-                id="custom-api-container",
-                classes="hidden"
-            ),
+            with Vertical(id="custom-api-container", classes="hidden"):
+                yield Label("Setup Custom API Credentials", classes="step-label")
+                yield Input(placeholder="Client ID", id="input-client-id")
+                yield Input(placeholder="Client Secret", id="input-client-secret", password=True)
+                yield Button("Save & Login", id="btn-save-custom", variant="warning")
 
-            Container(
-                Label("1. Go to URL:", classes="step-label"),
-                Input(id="url-copy", classes="copy-field", value="", disabled=True),
-                Label("2. Enter Code:", classes="step-label"),
-                Input(id="user-code", classes="copy-field", value="", disabled=True),
-                Label("Waiting for approval...", id="status-label"),
-                id="oauth-container",
-                classes="hidden"
-            ),
+            with Vertical(id="oauth-container", classes="hidden"):
+                yield Label("1. Go to URL:", classes="step-label")
+                yield Input(id="url-copy", classes="copy-field", value="", disabled=True)
+                yield Label("2. Enter Code:", classes="step-label")
+                yield Input(id="user-code", classes="copy-field", value="", disabled=True)
+                yield Label("Waiting for approval...", id="status-label")
 
-            Button("Configure API Keys", id="btn-config"),
-            Button("Paste Headers (Advanced)", id="btn-manual-toggle"),
-            Input(placeholder="Paste JSON Headers here...", id="input-headers", classes="hidden"),
-            Button("Submit Headers", id="btn-submit", classes="hidden"),
+            yield Button("Configure API Keys", id="btn-config")
+            yield Button("Paste Headers (Advanced)", id="btn-manual-toggle")
+            yield Input(placeholder="Paste JSON Headers here...", id="input-headers", classes="hidden")
+            yield Button("Submit Headers", id="btn-submit", classes="hidden")
             
-            Label("", id="error-label"),
-            id="login-container"
-        )
+            yield Label("", id="error-label")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         logger.info(f"Button pressed: {event.button.id}")

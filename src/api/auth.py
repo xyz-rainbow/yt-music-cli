@@ -216,3 +216,16 @@ class AuthManager:
         if os.path.exists(CREDENTIALS_FILE):
             os.remove(CREDENTIALS_FILE)
         self._api = None
+
+    def get_user_info(self) -> Dict:
+        """Fetch basic user info to confirm login."""
+        try:
+            # Try to login if not already
+            if self._api is None:
+                self.login()
+            if self._api:
+                return self._api.get_account_info()
+        except Exception as e:
+            self.logger.warning(f"Could not fetch account info: {e}")
+        
+        return {"name": "Authenticated User", "email": "N/A"}

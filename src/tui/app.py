@@ -3,6 +3,7 @@ from src.api.auth import AuthManager
 from src.api.client import YTMusicClient
 from src.tui.screens.login import LoginScreen
 from src.tui.screens.player import PlayerScreen
+from src.tui.screens.account import AccountScreen
 
 class YTMusicApp(App):
     CSS_PATH = "styles.css"
@@ -11,6 +12,7 @@ class YTMusicApp(App):
         ("q", "quit", "Quit"),
         ("d", "toggle_dark", "Toggle Dark Mode"),
         ("space", "toggle_pause", "Pause/Resume"),
+        ("escape", "push_screen('account')", "Account"),
     ]
 
     def on_mount(self) -> None:
@@ -20,10 +22,11 @@ class YTMusicApp(App):
         # Define screens
         self.install_screen(LoginScreen(), name="login")
         self.install_screen(PlayerScreen(), name="player")
+        self.install_screen(AccountScreen(), name="account")
         
         # Check authentication and route
         if self.auth.is_authenticated():
-            self.push_screen("player")
+            self.push_screen("account")
         else:
             self.push_screen("login")
 
@@ -35,7 +38,9 @@ class YTMusicApp(App):
 
     def action_toggle_pause(self) -> None:
         """Global pause action."""
-        if hasattr(self.screen, "player"):
+        if hasattr(self.screen, "action_toggle_pause"):
+            self.screen.action_toggle_pause()
+        elif hasattr(self.screen, "player"):
             self.screen.player.toggle_pause()
 
 def run_app():
