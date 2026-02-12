@@ -87,14 +87,24 @@ class PlayerScreen(Screen):
                     key=video_id
                 )
 
+    @work(thread=True)
+    def play_track(self, url, video_id):
+        try:
+            self.player.play(url)
+
+            def update_ui():
+                self.query_one("#player-bar").update(f"Playing: {video_id}...")
+            self.app.call_from_thread(update_ui)
+
+        except Exception as e:
+            def show_error():
+                self.app.notify(f"Playback error: {e}", severity="error")
+            self.app.call_from_thread(show_error)
+
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         video_id = event.row_key.value
         url = f"https://music.youtube.com/watch?v={video_id}"
-        try:
-            self.player.play(url)
-            self.query_one("#player-bar").update(f"Playing: {video_id}...")
-        except Exception as e:
-            self.app.notify(f"Playback error: {e}", severity="error")
+        self.play_track(url, video_id)
 
     def action_toggle_pause(self):
         if not hasattr(self, 'player'):

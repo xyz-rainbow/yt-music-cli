@@ -1,0 +1,3 @@
+## 2024-05-22 - Blocking Subprocess Calls in TUI
+**Learning:** The `Player` class uses `subprocess.Popen` but cleans up old processes with a blocking `wait(timeout=1)`. In a TUI event loop (Textual), calling this synchronously freezes the interface. Offloading to a worker thread is essential, but requires thread-safe state management (locks) for the shared `Player` instance to prevent race conditions when multiple actions occur rapidly.
+**Action:** When integrating subprocess management in a TUI, always wrap blocking cleanup in a worker thread and use `threading.RLock` to protect shared state.
