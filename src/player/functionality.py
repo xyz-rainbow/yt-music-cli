@@ -6,12 +6,14 @@ import json
 import socket
 import time
 import threading
+import signal
 import yt_dlp
 
 class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.process = None
+        self._paused = False
         self.current_url = None
         self.ipc_path = "/tmp/ytmusic-cli-mpv.sock"
         self._paused = False
@@ -147,6 +149,30 @@ class Player:
                 except Exception as e:
                     self.logger.error(f"Playback failed: {e}")
                     raise e
+
+
+    def pause(self):
+        """Toggle pause using process signals."""
+        if not self.process or self.process.poll() is not None:
+            return
+
+        try:
+            # Check for signal availability safely
+            sig_stop = getattr(signal, "SIGSTOP", None)
+            sig_cont = getattr(signal, "SIGCONT", None)
+
+            if sig_stop is None or sig_cont is None:
+                self.logger.warning("SIGSTOP/SIGCONT not supported on this platform")
+                return
+
+            if self._paused:
+                os.kill(self.process.pid, sig_cont)
+                self._paused = False
+            else:
+                os.kill(self.process.pid, sig_stop)
+                self._paused = True
+        except Exception as e:
+            self.logger.error(f"Failed to pause/resume process: {e}")
 
     def toggle_pause(self):
         """Toggle pause."""
