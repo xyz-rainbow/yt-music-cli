@@ -42,15 +42,14 @@ class LoginScreen(Screen):
         text-style: bold;
     }
     #btn-oauth {
-        background: $surface-lighten-1;
-        color: $text-disabled;
-        border: none;
-    }
-    #btn-submit {
-        background: $success;
+        background: #2196F3;
         color: white;
     }
-
+    #btn-submit {
+        background: $surface-lighten-1;
+        color: white;
+        border: none;
+    }
     #btn-paste {
         background: $accent;
         color: white;
@@ -76,16 +75,6 @@ class LoginScreen(Screen):
         margin-top: 1;
         height: auto;
     }
-    #btn-oauth {
-        background: $surface-lighten-1;
-        color: $text-disabled;
-        border: none;
-    }
-    #btn-submit {
-        background: $success;
-        color: white;
-    }
-
     TextArea {
         margin-top: 1;
         height: 8;
@@ -93,6 +82,7 @@ class LoginScreen(Screen):
         background: $surface;
     }
     """
+
 
     def compose(self):
         with Vertical(id="login-container"):
