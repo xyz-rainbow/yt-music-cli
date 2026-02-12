@@ -34,6 +34,28 @@ class TestPlayerFunctionality(unittest.TestCase):
         args = mock_popen.call_args[0][0]
         self.assertEqual(args[0], "mpv")
         self.assertIn("http://example.com", args)
+        # Verify -- is present
+        self.assertIn("--", args)
+        # Verify url is after --
+        dash_index = args.index("--")
+        url_index = args.index("http://example.com")
+        self.assertGreater(url_index, dash_index)
+
+    @patch('shutil.which')
+    def test_play_invalid_protocol(self, mock_which):
+        mock_which.return_value = "/usr/bin/mpv"
+        player = Player()
+
+        invalid_urls = [
+            "file:///etc/passwd",
+            "ftp://example.com",
+            "javascript:alert(1)",
+            "--help"
+        ]
+
+        for url in invalid_urls:
+            with self.assertRaises(ValueError):
+                player.play(url)
 
     @patch('shutil.which')
     @patch('subprocess.Popen')

@@ -107,24 +107,33 @@ class Player:
     def play(self, url: str):
         """Play a stream URL."""
         if not self.executable:
-            return
+            raise RuntimeError("No audio player found (mpv or ffplay). Please install one.")
+
+        # Security check: Validate protocol
+        if not url.lower().startswith(('http://', 'https://')):
+            raise ValueError("Invalid URL protocol. Only http/https supported.")
+
+        self.stop() # Stop previous
 
         self._ensure_process()
         self.current_url = url
         
         if self.executable == "mpv":
-            # Usamos flags de carga rápida
+            # Usamos flags de carga rápida con IPC
+            # Note: IPC commands are safe from argument injection
             self._send_command(["loadfile", url, "replace"])
             self._send_command(["set_property", "pause", False])
             self._send_command(["set_property", "ytdl-format", "bestaudio"])
         else:
-            # Fallback for ffplay
+            # Fallback for ffplay - use -- to prevent argument injection
             self.stop()
-            cmd = [self.executable] + self.args + [url]
+            cmd = [self.executable] + self.args + ["--", url]
             self.process = subprocess.Popen(
                 cmd,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
             )
 
     def toggle_pause(self):
