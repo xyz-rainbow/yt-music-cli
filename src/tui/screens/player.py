@@ -1,6 +1,7 @@
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Input, DataTable, Button, Label, Static
 from textual.containers import Container, Horizontal, Vertical
+from textual import work
 from src.api.client import YTMusicClient
 from src.player.functionality import Player
 
@@ -28,6 +29,10 @@ class PlayerScreen(Screen):
     }
     """
 
+    BINDINGS = [
+        ("space", "toggle_pause", "Pause/Resume"),
+    ]
+
     def compose(self):
         yield Horizontal(
             Vertical(
@@ -52,17 +57,26 @@ class PlayerScreen(Screen):
     def on_input_submitted(self, event: Input.Submitted):
         if event.input.id == "search-input":
             query = event.value
+            self.perform_search(query)
+
+    @work(thread=True)
+    def perform_search(self, query):
+        try:
+            # client.search_songs performs network I/O.
             results = self.app.client.search_songs(query)
-            self.populate_table(results)
+
+            # Update UI in main thread
+            self.app.call_from_thread(self.populate_table, results)
+        except Exception as e:
+            def show_error():
+                self.app.notify(f"Search failed: {e}", severity="error")
+            self.app.call_from_thread(show_error)
 
     def populate_table(self, results):
         table = self.query_one(DataTable)
         table.clear()
         for song in results:
-            # Safely get duration, sometimes it's missing
             duration = song.get("duration", "N/A")
-            # Store full song data in the row key or checking ID
-            # For now row_key is videoId
             video_id = song.get("videoId")
             if video_id:
                 table.add_row(
@@ -75,9 +89,21 @@ class PlayerScreen(Screen):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         video_id = event.row_key.value
-        # In a real app we need to get the streaming URL. 
-        # mpv with ytdl=True can often handle "https://music.youtube.com/watch?v=VIDEO_ID"
         url = f"https://music.youtube.com/watch?v={video_id}"
-        self.player.play(url)
-        self.query_one("#player-bar").update(f"Playing: {video_id}...")
+        try:
+            self.player.play(url)
+            self.query_one("#player-bar").update(f"Playing: {video_id}...")
+        except Exception as e:
+            self.app.notify(f"Playback error: {e}", severity="error")
 
+    def action_toggle_pause(self):
+        if not hasattr(self, 'player'):
+            return
+
+        self.player.pause()
+        status = self.player.get_status()
+        state = status.get("state", "Unknown")
+        paused = status.get("paused", False)
+
+        display_state = "Paused" if paused else state
+        self.query_one("#player-bar").update(f"State: {display_state}")

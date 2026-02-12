@@ -5,12 +5,10 @@ from textual import work
 from src.api.auth import AuthManager
 import logging
 
-# Configure logging to file
-logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+# Use logger but do not configure basicConfig here
 logger = logging.getLogger(__name__)
 
 class LoginScreen(Screen):
-    # ... CSS ...
     CSS = """
     LoginScreen {
         align: center middle;
@@ -139,9 +137,13 @@ class LoginScreen(Screen):
             self.app.call_from_thread(update_ui)
             
             # Auto-open browser
-            import webbrowser
-            webbrowser.open(url)
-            self.app.notify("Browser opened! Please enter the code.")
+            try:
+                import webbrowser
+                webbrowser.open(url)
+                self.app.notify("Browser opened! Please enter the code.")
+            except Exception as e:
+                logger.warning(f"Failed to open browser: {e}")
+                self.app.notify(f"Please open {url} manually", severity="warning")
             
             # Start Polling Worker
             self.poll_auth_worker(auth, device_code, interval)
@@ -184,5 +186,3 @@ class LoginScreen(Screen):
     def on_oauth_error(self, message):
         self.query_one("#error-label").update(f"Poll Error: {message}")
         self.query_one("#status-label").update("Login Checked Failed.")
-
-
