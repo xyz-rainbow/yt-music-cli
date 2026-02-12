@@ -132,6 +132,7 @@ class PlayerScreen(Screen):
     def on_mount(self):
         self.player = Player()
         self.results_data = {}
+        self.current_track_id = None # Rastrear canción actual
         
         # Setup results table
         table = self.query_one("#results-table")
@@ -218,10 +219,19 @@ class PlayerScreen(Screen):
 
     def play_selected_song(self, video_id):
         """Reproducción en hilo puro de sistema para máxima fluidez de GUI."""
+        # Lógica de Toggle: Si es la misma canción, pausamos/reanudamos
+        if self.current_track_id == video_id:
+            self.player.toggle_pause()
+            # Feedback visual simple
+            self.query_one("#player-bar").update(f"⏯️ Toggle Play/Pause")
+            return
+
         song = self.results_data.get(video_id)
         if not song:
             return
 
+        self.current_track_id = video_id # Actualizamos la canción actual
+        
         self.query_one("#current-title").update(song.get("title", "Unknown"))
         artists = song.get("artists", [])
         artist_name = ", ".join([a["name"] for a in artists]) if isinstance(artists, list) else "Unknown"
