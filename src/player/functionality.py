@@ -5,6 +5,7 @@ import os
 import json
 import socket
 import time
+import threading
 import yt_dlp
 
 class Player:
@@ -13,6 +14,8 @@ class Player:
         self.process = None
         self.current_url = None
         self.ipc_path = "/tmp/ytmusic-cli-mpv.sock"
+        self._paused = False
+        self._lock = threading.RLock()
         
         # Configuration for yt-dlp
         self.ydl_opts = {
@@ -117,50 +120,58 @@ class Player:
         if not url.lower().startswith(('http://', 'https://')):
             raise ValueError("Invalid URL protocol. Only http/https supported.")
 
-        self.stop() # Stop previous
+        with self._lock:
+            self.stop() # Stop previous
 
-        self._ensure_process()
-        self.current_url = url
-        
-        if self.executable == "mpv":
-            # Usamos flags de carga rápida con IPC
-            # Note: IPC commands are safe from argument injection
-            self._send_command(["loadfile", url, "replace"])
-            self._send_command(["set_property", "pause", False])
-            self._send_command(["set_property", "ytdl-format", "bestaudio"])
-        else:
-            # Fallback for ffplay - use -- to prevent argument injection
-            self.stop()
-            cmd = [self.executable] + self.args + ["--", url]
-            self.process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+            self._ensure_process()
+            self.current_url = url
+            self._paused = False
+            
+            if self.executable == "mpv":
+                # Usamos flags de carga rápida con IPC
+                # Note: IPC commands are safe from argument injection
+                self._send_command(["loadfile", url, "replace"])
+                self._send_command(["set_property", "pause", False])
+                self._send_command(["set_property", "ytdl-format", "bestaudio"])
+            else:
+                # Fallback for ffplay - use -- to prevent argument injection
+                cmd = [self.executable] + self.args + ["--", url]
+                try:
+                    self.process = subprocess.Popen(
+                        cmd,
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True
+                    )
+                except Exception as e:
+                    self.logger.error(f"Playback failed: {e}")
+                    raise e
 
     def toggle_pause(self):
         """Toggle pause."""
-        if self.executable == "mpv":
-            # 'cycle pause' es atómico y mucho más rápido que preguntar y luego setear
-            self._send_command(["cycle", "pause"])
+        with self._lock:
+            if self.executable == "mpv":
+                # 'cycle pause' es atómico y mucho más rápido que preguntar y luego setear
+                self._send_command(["cycle", "pause"])
 
     def stop(self):
         """Stop playback and kill process."""
-        if self.process:
-            try:
-                self.process.terminate()
-                self.process.wait(timeout=1)
-            except:
-                self.process.kill()
-            self.process = None
-        
-        if os.path.exists(self.ipc_path):
-            try:
-                os.remove(self.ipc_path)
-            except:
-                pass
+        with self._lock:
+            if self.process:
+                try:
+                    self.process.terminate()
+                    self.process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                self.process = None
+                self._paused = False
+            
+            if os.path.exists(self.ipc_path):
+                try:
+                    os.remove(self.ipc_path)
+                except:
+                    pass
             
     def set_volume(self, volume: int):
         """Set volume (0-100)."""
@@ -169,18 +180,27 @@ class Player:
             
     def get_status(self) -> dict:
         """Get current playback status."""
-        if self.executable == "mpv":
-            paused = self._send_command(["get_property", "pause"])
-            percent = self._send_command(["get_property", "percent-pos"])
+        with self._lock:
+            if self.executable == "mpv":
+                paused = self._send_command(["get_property", "pause"])
+                percent = self._send_command(["get_property", "percent-pos"])
+                
+                return {
+                    "paused": paused.get("data", False) if paused else False,
+                    "progress": percent.get("data", 0) if percent else 0,
+                    "state": "Playing" if not (paused and paused.get("data")) else "Paused"
+                }
+            
+            is_running = self.process and self.process.poll() is None
+            if not is_running:
+                state = "Stopped"
+                self._paused = False
+            elif self._paused:
+                state = "Paused"
+            else:
+                state = "Playing"
             
             return {
-                "paused": paused.get("data", False) if paused else False,
-                "progress": percent.get("data", 0) if percent else 0,
-                "state": "Playing" if not (paused and paused.get("data")) else "Paused"
+                "paused": self._paused,
+                "state": state
             }
-        
-        state = "Playing" if self.process and self.process.poll() is None else "Stopped"
-        return {
-            "paused": False,
-            "state": state
-        }
