@@ -1,5 +1,5 @@
 from textual.screen import Screen
-from textual.widgets import Button, Input, Static, Label, Header, Footer
+from textual.widgets import Button, Input, Static, Label
 from textual.containers import Container, Vertical
 from textual import work
 from src.api.auth import AuthManager

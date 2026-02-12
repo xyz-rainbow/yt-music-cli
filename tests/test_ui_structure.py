@@ -17,19 +17,19 @@ class TestUIStructure(unittest.TestCase):
 
         player_screen = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "PlayerScreen")
 
-        # Check if perform_search is async
-        perform_search = next((n for n in player_screen.body if isinstance(n, ast.FunctionDef) and n.name == "perform_search"), None)
+        # Check if run_search is async
+        run_search = next((n for n in player_screen.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "run_search"), None)
 
-        self.assertIsNotNone(perform_search, "perform_search method missing")
+        self.assertIsNotNone(run_search, "run_search method missing")
 
         has_work = False
-        for d in perform_search.decorator_list:
+        for d in run_search.decorator_list:
             if isinstance(d, ast.Call) and getattr(d.func, 'id', '') == 'work':
                 has_work = True
             elif isinstance(d, ast.Name) and d.id == 'work':
                 has_work = True
 
-        self.assertTrue(has_work, "perform_search must be decorated with @work")
+        self.assertTrue(has_work, "run_search must be decorated with @work")
 
     def test_login_oauth_async(self):
         """
