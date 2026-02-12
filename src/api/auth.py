@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import requests
 from typing import Optional, Dict
 import requests
 from ytmusicapi import YTMusic
