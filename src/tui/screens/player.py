@@ -23,25 +23,23 @@ class AlbumArt(Static):
 
     def _generate_block_art(self, img):
         # Optimized size for sidebar (approx 30-36 chars wide)
-        target_width = 34
-        target_height = 16  # results in 32 pixels high
+        target_width = 30
+        target_height = 15
         
-        small_img = img.convert("RGB").resize((target_width, target_height * 2), Image.Resampling.LANCZOS)
-        text = Text()
-        
-        for y in range(0, small_img.height, 2):
-            for x in range(small_img.width):
-                r1, g1, b1 = small_img.getpixel((x, y))
-                if y + 1 < small_img.height:
-                    r2, g2, b2 = small_img.getpixel((x, y + 1))
-                else:
-                    r2, g2, b2 = 0, 0, 0
-                
-                # ANSI TrueColor formatting via Rich
-                text.append("▀", style=f"color(#{r1:02x}{g1:02x}{b1:02x}) on color(#{r2:02x}{g2:02x}{b2:02x})")
-            text.append("\n")
+        try:
+            small_img = img.convert("RGB").resize((target_width, target_height), Image.Resampling.LANCZOS)
+            text = Text()
             
-        return text
+            for y in range(small_img.height):
+                for x in range(small_img.width):
+                    r, g, b = small_img.getpixel((x, y))
+                    # Use full block character for maximum compatibility
+                    text.append("█", style=f"color(#{r:02x}{g:02x}{b:02x})")
+                text.append("\n")
+                
+            return text
+        except Exception as e:
+            return Text(f"Art Error: {e}", style="red")
 
     def set_image(self, image_bytes: bytes):
         try:
@@ -123,24 +121,39 @@ class PlayerScreen(Screen):
         border: tall $secondary;
     }
     #player-bar {
-        height: 5;
+        height: auto;
+        min-height: 6;
         dock: bottom;
-        background: $secondary;
-        color: white;
-        padding: 0 1;
+        background: $surface-lighten-1;
+        border-top: solid $accent;
+        padding: 1 1; /* Minimal padding */
+        align: center middle;
     }
     #time-display {
         width: 100%;
         text-align: center;
         text-style: bold;
+        color: $accent;
+        margin-bottom: 1;
     }
     ProgressBar {
         width: 100%;
-        margin: 0;
+        height: 1;
+        margin: 0 0 1 0;
+        background: $surface-darken-1; /* This is the track background */
+        color: $accent; /* This is the filled bar color */
+    }
+    /* Target the internal bar component directly */
+    ProgressBar > .bar {
+        width: 100%;
+        height: 100%;
+        color: $accent;
+        background: $surface-darken-1;
     }
     .controls-hint {
         text-align: center;
         width: 100%;
+        color: $text-muted;
     }
     DataTable {
         scrollbar-gutter: stable;
@@ -201,7 +214,8 @@ class PlayerScreen(Screen):
         )
         with Vertical(id="player-bar"):
             yield Label("00:00 / 00:00", id="time-display")
-            yield ProgressBar(total=100, show_bar=True, show_percentage=False, id="progress-bar")
+            # Disable ETA and percentage to keep the bar clean
+            yield ProgressBar(total=100, show_bar=True, show_eta=False, show_percentage=False, id="progress-bar")
             yield Static("Controls: [Space] Pause | [Alt+←/→] Skip | [←/→] Seek | [Alt+↑/↓] Vol | [Alt+Enter] Queue | [Alt+f] Like | [Alt+h] Home | [Alt+s] Search | [Esc] Account", classes="controls-hint")
 
     def on_mount(self):
@@ -356,8 +370,13 @@ class PlayerScreen(Screen):
         album = song.get("album")
         album_name = album.get("name", "Unknown") if isinstance(album, dict) else "Unknown"
         self.query_one("#current-album").update(f"Album: {album_name}")
+        
         thumbnails = song.get("thumbnails", [])
-        if thumbnails: self.download_art(thumbnails[-1]["url"])
+        if thumbnails:
+            # Use middle resolution thumbnail if available, or last (highest) as fallback
+            thumb_url = thumbnails[1]["url"] if len(thumbnails) > 1 else thumbnails[-1]["url"]
+            self.download_art(thumb_url)
+            
         self.play_worker(f"https://music.youtube.com/watch?v={video_id}")
 
     @work(exclusive=True)
@@ -370,8 +389,12 @@ class PlayerScreen(Screen):
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(url, timeout=5.0)
-                if resp.status_code == 200: self.query_one(AlbumArt).set_image(resp.content)
-        except: pass
+                if resp.status_code == 200:
+                    self.query_one(AlbumArt).set_image(resp.content)
+                else:
+                    self.app.notify(f"Art download failed: {resp.status_code}", severity="warning")
+        except Exception as e:
+            self.app.notify(f"Art error: {e}", severity="error")
 
     @work(exclusive=True)
     async def toggle_worker(self):

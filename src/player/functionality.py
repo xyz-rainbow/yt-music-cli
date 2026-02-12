@@ -31,15 +31,25 @@ class Player:
             # Buscamos el yt-dlp de nuestro .venv
             venv_ytdlp = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv/bin/yt-dlp")
             
-            # Argumentos para inicio ultra rápido
+            # Argumentos: "Pure Audio Mode" (Sin corrección A/V para evitar crujidos)
             self.args = [
                 "--no-video", 
                 "--idle=yes", 
                 f"--input-ipc-server={self.ipc_path}",
+                # Networking
                 "--cache=yes",
-                "--demuxer-max-bytes=2MiB", 
-                "--demuxer-readahead-secs=10",
-                # Corregido: Usamos comillas para los argumentos internos de yt-dlp y evitamos caracteres que rompan el parser
+                "--demuxer-max-bytes=128MiB",
+                "--demuxer-readahead-secs=20",
+                # AUDIO PURO: Desactivar sincronización de video (Causa #1 de crujidos)
+                "--mc=0",                    # Disable A/V sync correction
+                "--autosync=0",              # Disable auto-sync
+                "--no-initial-audio-sync",   # Don't wait for sync
+                "--video-sync=display-desync", # Desync video clock completely
+                # Calidad y Volumen
+                "--volume-max=100",          # Evitar clipping digital
+                "--audio-pitch-correction=no", # No estirar el audio si hay lag
+                # Formato
+                "--ytdl-format=bestaudio/best",
                 "--ytdl-raw-options=extractor-args=youtube:player_client=android+web+ios,js-runtimes=node,cookies-from-browser=chrome",
             ]
             if os.path.exists(venv_ytdlp):
