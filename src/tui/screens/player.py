@@ -216,11 +216,30 @@ class PlayerScreen(Screen):
                     key=video_id
                 )
 
+    @work(exclusive=True)
+    async def play_worker(self, url: str):
+        """Play a song in a worker thread."""
+        try:
+            await asyncio.to_thread(self.player.play, url)
+        except Exception as e:
+            self.app.notify(f"Playback error: {e}", severity="error")
+
+    @work(exclusive=True)
+    async def toggle_worker(self):
+        """Toggle pause in a worker thread."""
+        try:
+            await asyncio.to_thread(self.player.toggle_pause)
+            status = await asyncio.to_thread(self.player.get_status)
+            state = "Paused" if status.get("paused") else "Playing"
+            self.query_one("#player-bar").update(f"Status: {state}")
+        except Exception as e:
+            self.app.notify(f"Toggle error: {e}", severity="error")
+
     def play_selected_song(self, video_id):
         """Reproducción en hilo puro de sistema para máxima fluidez de GUI."""
         # Lógica de Toggle: Si es la misma canción, pausamos/reanudamos
         if self.current_track_id == video_id:
-            self.player.toggle_pause()
+            self.toggle_worker()
             # Feedback visual simple
             self.query_one("#player-bar").update(f"⏯️ Toggle Play/Pause")
             return
@@ -243,8 +262,7 @@ class PlayerScreen(Screen):
         url = f"https://music.youtube.com/watch?v={video_id}"
         self.query_one("#player-bar").update(f"Buffering: {song.get('title')}...")
         
-        # Hilo puro de Python para que Textual no se entere
-        threading.Thread(target=self.player.play, args=(url,), daemon=True).start()
+        self.play_worker(url)
         
         # Aseguramos que el foco no se pierda
         self.query_one("#results-table").focus()
@@ -264,10 +282,7 @@ class PlayerScreen(Screen):
             if self.focused and self.focused.id == "search-input":
                 return
             
-            self.player.toggle_pause()
-            status = self.player.get_status()
-            state = "PAUSED" if status.get("paused") else "PLAYING"
-            self.query_one("#player-bar").update(f"Status: {state}")
+            self.toggle_worker()
             event.prevent_default()
             return
 
@@ -333,10 +348,7 @@ class PlayerScreen(Screen):
                 self.query_one("#player-bar").update(f"Error downloading art: {e}")
 
     def action_toggle_pause(self):
-        self.player.toggle_pause()
-        status = self.player.get_status()
-        state = "Paused" if status.get("paused") else "Playing"
-        self.query_one("#player-bar").update(f"Status: {state}")
+        self.toggle_worker()
 
     def key_space(self):
         self.action_toggle_pause()
