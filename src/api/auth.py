@@ -8,6 +8,8 @@ APP_NAME = "ytmusic-cli"
 CREDENTIALS_FILE = "oauth.json"
 CLIENT_SECRETS_FILE = "client_secrets.json"
 
+from ytmusicapi.auth.oauth import OAuthCredentials
+
 class AuthManager:
     def __init__(self):
         self._api: Optional[YTMusic] = None
@@ -41,12 +43,38 @@ class AuthManager:
                 auth_data = json.load(f)
 
             # Check if it's OAuth (has token keys) or Headers (usually has Cookie)
-            if "access_token" in auth_data or "refresh_token" in auth_data:
+            # Add check for access_token before OAuth logic
+            is_oauth = "access_token" in auth_data
+
+            if is_oauth:
                 # For OAuth, we might need to pass the client secrets if they exist
                 client_id, client_secret = self.get_custom_credentials()
                 if client_id and client_secret:
                     # ytmusicapi uses these to refresh tokens
-                    self._api = YTMusic(CREDENTIALS_FILE, oauth_credentials=CLIENT_SECRETS_FILE)
+                    
+                    # Fetch Channel ID first
+                    token = auth_data["access_token"]
+                    headers = {"Authorization": f"Bearer {token}"}
+                    self.logger.debug("Fetching Channel ID...")
+                    user_id = None
+                    try:
+                        import requests
+                        resp = requests.get("https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true", headers=headers)
+                        resp.raise_for_status()
+                        channel_data = resp.json()
+                        
+                        if "items" in channel_data and len(channel_data["items"]) > 0:
+                            user_id = channel_data["items"][0]["id"]
+                            self.logger.debug(f"Found Channel ID: {user_id}")
+                        else:
+                            self.logger.warning("No Channel ID found in API response!")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to fetch Channel ID: {e}")
+                        user_id = None
+
+                    oauth_creds = OAuthCredentials(client_id, client_secret)
+                    # Pass user=user_id to YTMusic
+                    self._api = YTMusic(CREDENTIALS_FILE, oauth_credentials=oauth_creds, user=user_id)
                 else:
                     self._api = YTMusic(CREDENTIALS_FILE)
             else:
@@ -135,15 +163,10 @@ class AuthManager:
 
     def finish_oauth(self, token_data: Dict):
         """Finalize login with token data."""
-        # Ensure client credentials are saved with tokens for completeness
-        client_id, client_secret = self.get_custom_credentials()
-        if client_id and client_secret:
-            token_data["client_id"] = client_id
-            token_data["client_secret"] = client_secret
-            
         self.save_credentials(json.dumps(token_data))
         # Re-initialize API to use the new credentials
         self.login()
+
 
     def login_with_headers(self, headers_raw: str) -> bool:
         """Attempt to login with raw JSON headers."""
