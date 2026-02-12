@@ -29,13 +29,10 @@ A **lightweight, powerful, and minimalist** YouTube Music player for the termina
 ## ✨ Features
 
 - 🔍 **Smart Search** — Instant results with title & artist columns
-- 🏠 **Home Recommendations** — Personalized suggestions from YouTube Music
-- 🖼️ **Album Art** — High-resolution cover art via ANSI block rendering
 - 📂 **Queue Management** — Add songs without interrupting playback
 - ❤️ **Favorites** — Like/unlike songs synced to your YT Music library
 - 🔊 **Volume Control** — Fine-grained adjustment with visual feedback
 - 🔐 **Google OAuth Login** — One-click device code authentication
-- 🌓 **Transparency** — Respects your terminal's transparency & blur settings
 
 ## ⌨️ Keyboard Shortcuts
 
