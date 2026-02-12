@@ -211,15 +211,18 @@ class LoginScreen(Screen):
             logger.error(f"OAuth flow error: {e}")
             def show_error():
                 err_msg = str(e)
-                if "invalid_client" in err_msg or "unauthorized_client" in err_msg:
+                # ytmusicapi raises "OAuth client failure" when creds are blocked/invalid
+                if "invalid_client" in err_msg or "unauthorized_client" in err_msg or "OAuth client failure" in err_msg:
                     self.query_one("#error-label").update(
                         "OAuth Error: Google has restricted this public client.\n"
-                        "Please use the 'Browser Authentication' method above."
+                        "Please use the 'Paste Headers (Advanced)' method below."
                     )
                 else:
                     self.query_one("#error-label").update(f"OAuth Error: {e}")
                 
                 self.query_one("#oauth-container").add_class("hidden")
+                # Ensure the OAuth button is visible again so they can retry or see the error context
+                self.query_one("#btn-oauth").remove_class("hidden")
             self.app.call_from_thread(show_error)
 
     @work(thread=True)
