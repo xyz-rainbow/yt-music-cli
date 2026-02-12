@@ -8,7 +8,7 @@ from PIL import Image
 from rich.text import Text
 from textual import work
 from textual.screen import Screen
-from textual.widgets import Input, DataTable, Button, Label, Static
+from textual.widgets import Input, DataTable, Button, Label, Static, ProgressBar
 from textual.containers import Container, Horizontal, Vertical
 from src.player.functionality import Player
 

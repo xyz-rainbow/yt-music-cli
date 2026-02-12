@@ -249,10 +249,14 @@ class Player:
             if self.executable == "mpv":
                 paused = self._send_command(["get_property", "pause"])
                 percent = self._send_command(["get_property", "percent-pos"])
+                time_pos = self._send_command(["get_property", "time-pos"])
+                duration = self._send_command(["get_property", "duration"])
                 
                 return {
                     "paused": paused.get("data", False) if paused else False,
                     "progress": percent.get("data", 0) if percent else 0,
+                    "time_pos": time_pos.get("data", 0) if time_pos else 0,
+                    "duration": duration.get("data", 0) if duration else 0,
                     "state": "Playing" if not (paused and paused.get("data")) else "Paused"
                 }
             
