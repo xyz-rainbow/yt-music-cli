@@ -3,6 +3,7 @@ from textual.widgets import Button, Input, Label
 from textual.containers import Container
 from textual import work
 from src.api.auth import AuthManager
+import time
 import logging
 
 # Use logger but do not configure basicConfig here
@@ -166,7 +167,6 @@ class LoginScreen(Screen):
 
     @work(thread=True)
     def poll_auth_worker(self, auth, device_code, interval):
-        import time
         logger.info("Inside poll_auth_worker")
         
         while True:
