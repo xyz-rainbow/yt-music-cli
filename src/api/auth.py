@@ -81,8 +81,8 @@ class AuthManager:
                 # Headers authentication
                 self._api = YTMusic(auth=json.dumps(auth_data))
                 
-        except Exception as e:
-            self.logger.error(f"Login error: {e}")
+        except Exception:
+            self.logger.error("Login error: Authentication failed.")
             raise
 
     def get_custom_credentials(self) -> tuple[Optional[str], Optional[str]]:
