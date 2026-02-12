@@ -6,6 +6,11 @@ import os
 from unittest.mock import MagicMock, patch
 from concurrent.futures import ThreadPoolExecutor
 
+# Mock dependencies before import
+sys.modules['yt_dlp'] = MagicMock()
+sys.modules['ytmusicapi'] = MagicMock()
+sys.modules['textual'] = MagicMock()
+
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
