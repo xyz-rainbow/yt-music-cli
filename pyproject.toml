@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yt-music"
+version = "0.1.0"
+description = "Un reproductor de YouTube Music para la terminal"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "textual",
+    "ytmusicapi",
+    "yt-dlp",
+    "pyperclip",
+    "Pillow",
+    "httpx",
+]
+
+[project.scripts]
+yt-music = "src.tui.app:run_app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

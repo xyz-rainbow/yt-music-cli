@@ -1,0 +1,67 @@
+/* Base styles for YT-Music CLI */
+
+Screen {
+    background: $surface;
+    color: $text;
+}
+
+.hidden {
+    display: none;
+}
+
+.sidebar-title {
+    text-style: bold;
+    background: $accent;
+    color: $text;
+    text-align: center;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+#sidebar {
+    background: $surface-darken-1;
+    border-right: solid $accent;
+}
+
+#now-playing {
+    background: $surface-darken-1;
+    border-left: solid $accent;
+    padding: 1;
+}
+
+.song-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+}
+
+.song-artist {
+    color: $text-muted;
+    text-align: center;
+}
+
+#player-bar {
+    background: $secondary;
+    color: $text;
+    text-align: center;
+    height: 3;
+}
+
+/* Login specific */
+#login-container {
+    border: double $accent;
+    padding: 2;
+    margin: 2;
+    background: $surface;
+}
+
+.step-label {
+    text-style: italic;
+    color: $text-muted;
+    margin-top: 1;
+}
+
+.copy-field {
+    background: $surface-lighten-1;
+    color: $accent;
+}

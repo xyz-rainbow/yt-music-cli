@@ -1,0 +1,16 @@
+#!/bin/bash
+# Script de inicio para yt-music-cli con chequeo de dependencias
+
+if ! command -v mpv &> /dev/null; then
+    echo "Error: 'mpv' no está instalado. Es necesario para la reproducción de audio."
+    echo "Puedes instalarlo con: sudo apt install mpv"
+    exit 1
+fi
+
+PYTHON_PATH="/home/cloud-xyz/Documents/Dev Mode/yt-music-cli/.venv/bin/python"
+APP_PATH="/home/cloud-xyz/Documents/Dev Mode/yt-music-cli/main.py"
+
+# Cambiar al directorio del proyecto para asegurar que los archivos locales se carguen correctamente
+cd "$(dirname "$APP_PATH")"
+
+"$PYTHON_PATH" "$APP_PATH" "$@"

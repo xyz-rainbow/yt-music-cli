@@ -10,6 +10,7 @@ class YTMusicApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("d", "toggle_dark", "Toggle Dark Mode"),
+        ("space", "toggle_pause", "Pause/Resume"),
     ]
 
     def on_mount(self) -> None:
@@ -26,6 +27,20 @@ class YTMusicApp(App):
         else:
             self.push_screen("login")
 
-if __name__ == "__main__":
+    def action_quit(self) -> None:
+        """Forzar salida limpia."""
+        if hasattr(self, "screen") and hasattr(self.screen, "player"):
+            self.screen.player.stop()
+        self.exit()
+
+    def action_toggle_pause(self) -> None:
+        """Acción global de pausa."""
+        if hasattr(self.screen, "player"):
+            self.screen.player.toggle_pause()
+
+def run_app():
     app = YTMusicApp()
     app.run()
+
+if __name__ == "__main__":
+    run_app()
