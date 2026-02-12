@@ -6,7 +6,7 @@ import httpx
 from PIL import Image
 from textual import work
 from textual.screen import Screen
-from textual.widgets import Header, Footer, Input, DataTable, Button, Label, Static
+from textual.widgets import Input, DataTable, Button, Label, Static
 from textual.containers import Container, Horizontal, Vertical
 from src.player.functionality import Player
 
