@@ -81,6 +81,14 @@ class LoginScreen(Screen):
         border: tall $accent;
         background: $surface;
     }
+    .hidden {
+        display: none;
+    }
+    #btn-toggle-advanced {
+        background: $surface;
+        color: $text-muted;
+        border: none;
+    }
     """
 
 
@@ -101,16 +109,20 @@ class LoginScreen(Screen):
             
             yield Label("──────────────────────────────────────", classes="subtitle")
 
-            # Browser Auth Section (Secondary fallback)
-            yield Label("Manual Fallback: Browser Authentication", classes="step-label")
-            with Vertical(classes="instructions"):
-                yield Label("1. Open music.youtube.com in your browser")
-                yield Label("2. Copy 'Cookie' header from DevTools (F12 > Network)")
-                yield Label("3. Paste it below and press Enter")
-            
-            yield TextArea(id="input-headers")
-            yield Button("Paste from Clipboard", id="btn-paste")
-            yield Button("Login with Browser Headers", id="btn-submit")
+            # Toggle for Browser Auth
+            yield Button("Paste Headers (Advanced)", id="btn-toggle-advanced")
+
+            # Browser Auth Section (Hidden by default)
+            with Vertical(id="browser-auth-container", classes="hidden"):
+                yield Label("Recommended: Browser Authentication", classes="step-label")
+                with Vertical(classes="instructions"):
+                    yield Label("1. Open music.youtube.com in your browser")
+                    yield Label("2. Copy 'Cookie' header from DevTools (F12 > Network)")
+                    yield Label("3. Paste it below and press Enter")
+                
+                yield TextArea(id="input-headers")
+                yield Button("Paste from Clipboard", id="btn-paste")
+                yield Button("Login with Browser Headers", id="btn-submit")
 
             yield Label("", id="error-label")
 
@@ -120,6 +132,10 @@ class LoginScreen(Screen):
         
         if event.button.id == "btn-oauth":
             self.start_oauth_flow(auth)
+        
+        elif event.button.id == "btn-toggle-advanced":
+            self.query_one("#browser-auth-container").remove_class("hidden")
+            self.query_one("#btn-toggle-advanced").add_class("hidden")
 
         elif event.button.id == "btn-paste":
             try:
