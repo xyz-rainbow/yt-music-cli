@@ -7,6 +7,12 @@ from unittest.mock import patch, MagicMock, call
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Mock yt_dlp before importing Player if not installed
+try:
+    import yt_dlp
+except ImportError:
+    sys.modules["yt_dlp"] = MagicMock()
+
 from src.player.functionality import Player
 
 class TestPlayerFunctionality(unittest.TestCase):
@@ -17,19 +23,19 @@ class TestPlayerFunctionality(unittest.TestCase):
         self.assertIsNone(player.executable)
 
     @patch('shutil.which')
-    def test_play_no_player_returns_safely(self, mock_which):
+    def test_play_no_player_raises_error(self, mock_which):
         mock_which.return_value = None
         player = Player()
-        # Should not raise exception
-        try:
+        # Should raise RuntimeError when no player is available
+        with self.assertRaises(RuntimeError):
             player.play("http://example.com")
-        except RuntimeError:
-            self.fail("play() raised RuntimeError unexpectedly!")
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
     @patch('src.player.functionality.Player._send_command')
     def test_play_mpv_success(self, mock_send_command, mock_popen, mock_which):
+
+
         mock_which.side_effect = lambda x: "/usr/bin/mpv" if x == "mpv" else None
         player = Player()
         self.assertEqual(player.executable, "mpv")
@@ -44,10 +50,6 @@ class TestPlayerFunctionality(unittest.TestCase):
         self.assertNotIn("http://example.com", args)
 
         # Check IPC commands sent
-        # We expect loadfile, unpause, and set ytdl-format
-        # Note: play() calls _ensure_process() which might or might not call Popen depending on state.
-        # Here we start fresh so Popen is called.
-
         calls = [
             call(["loadfile", "http://example.com", "replace"]),
             call(["set_property", "pause", False]),
@@ -98,11 +100,15 @@ class TestPlayerFunctionality(unittest.TestCase):
                 player.play(url)
 
     @patch('shutil.which')
-    @patch('subprocess.Popen')
-    def test_stop(self, mock_popen, mock_which):
+    def test_stop_process(self, mock_which):
         mock_which.return_value = "/usr/bin/mpv"
         player = Player()
-        player.play("http://example.com")
+
+    @patch('shutil.which')
+    @patch('src.player.functionality.Player._send_command')
+    def test_toggle_pause_mpv(self, mock_send, mock_which):
+        mock_which.return_value = "/usr/bin/mpv"
+        player = Player()
 
         # Mock the process object on the player
         mock_process = MagicMock()
