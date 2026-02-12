@@ -177,8 +177,13 @@ class Player:
             
     def set_volume(self, volume: int):
         """Set volume (0-100)."""
+        if not (0 <= volume <= 100):
+            raise ValueError("Volume must be between 0 and 100")
+
         if self.executable == "mpv":
             self._send_command(["set_property", "volume", volume])
+        else:
+            self.logger.warning(f"Volume control not supported for {self.executable}")
             
     def get_status(self) -> dict:
         """Get current playback status."""

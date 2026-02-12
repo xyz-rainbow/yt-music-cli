@@ -7,6 +7,9 @@ from unittest.mock import patch, MagicMock, call
 # Ensure src is in path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Mock yt_dlp since it might not be installed in the test environment
+sys.modules['yt_dlp'] = MagicMock()
+
 from src.player.functionality import Player
 
 class TestPlayerFunctionality(unittest.TestCase):
@@ -17,14 +20,12 @@ class TestPlayerFunctionality(unittest.TestCase):
         self.assertIsNone(player.executable)
 
     @patch('shutil.which')
-    def test_play_no_player_returns_safely(self, mock_which):
+    def test_play_no_player_raises_error(self, mock_which):
         mock_which.return_value = None
         player = Player()
-        # Should not raise exception
-        try:
+
+        with self.assertRaises(RuntimeError):
             player.play("http://example.com")
-        except RuntimeError:
-            self.fail("play() raised RuntimeError unexpectedly!")
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
@@ -94,8 +95,9 @@ class TestPlayerFunctionality(unittest.TestCase):
         ]
 
         for url in invalid_urls:
-            with self.assertRaises(ValueError):
+            with self.assertLogs(player.logger, level='ERROR') as cm:
                 player.play(url)
+                self.assertTrue(any("Security blocked: Invalid URL scheme" in output for output in cm.output))
 
     @patch('shutil.which')
     @patch('subprocess.Popen')
@@ -141,6 +143,41 @@ class TestPlayerFunctionality(unittest.TestCase):
 
         player.toggle_pause()
         mock_send_command.assert_called_with(["cycle", "pause"])
+
+    @patch('shutil.which')
+    @patch('src.player.functionality.Player._send_command')
+    def test_set_volume_mpv(self, mock_send_command, mock_which):
+        mock_which.return_value = "/usr/bin/mpv"
+        player = Player()
+
+        player.set_volume(50)
+        mock_send_command.assert_called_with(["set_property", "volume", 50])
+
+    @patch('shutil.which')
+    def test_set_volume_ffplay(self, mock_which):
+        # Setup mock for ffplay
+        def which_side_effect(cmd):
+            if cmd == "mpv": return None
+            if cmd == "ffplay": return "/usr/bin/ffplay"
+            return None
+        mock_which.side_effect = which_side_effect
+
+        player = Player()
+
+        with self.assertLogs(player.logger, level='WARNING') as cm:
+            player.set_volume(50)
+            self.assertTrue(any("Volume control not supported for ffplay" in output for output in cm.output))
+
+    @patch('shutil.which')
+    def test_set_volume_invalid(self, mock_which):
+        mock_which.return_value = "/usr/bin/mpv"
+        player = Player()
+
+        with self.assertRaises(ValueError):
+            player.set_volume(-1)
+
+        with self.assertRaises(ValueError):
+            player.set_volume(101)
 
 if __name__ == '__main__':
     unittest.main()
