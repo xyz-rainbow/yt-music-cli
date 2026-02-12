@@ -1,7 +1,10 @@
-from src.api.auth import AuthManager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.api.auth import AuthManager
 
 class YTMusicClient:
-    def __init__(self, auth_manager: AuthManager):
+    def __init__(self, auth_manager: "AuthManager"):
         self.auth_manager = auth_manager
 
     @property
