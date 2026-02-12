@@ -99,7 +99,7 @@ class PlayerScreen(Screen):
         text-align: center;
     }
     .song-artist {
-        color: $text-muted;
+        color: $info;
         content-align: center middle;
         text-align: center;
     }
@@ -132,7 +132,7 @@ class PlayerScreen(Screen):
     def on_mount(self):
         self.player = Player()
         self.results_data = {}
-        self.current_track_id = None # Rastrear canción actual
+        self.current_track_id = None # Track current song
         
         # Setup results table
         table = self.query_one("#results-table")
@@ -156,7 +156,7 @@ class PlayerScreen(Screen):
         """Fetch playlists from YouTube Music API."""
         self.query_one("#player-bar").update("Refreshing playlists...")
         try:
-            # Ejecutamos en un hilo para no bloquear
+            # Run in a thread to avoid blocking
             playlists = await asyncio.to_thread(self.app.client.get_library_playlists)
             p_table = self.query_one("#playlist-list")
             p_table.clear()
@@ -218,11 +218,11 @@ class PlayerScreen(Screen):
                 )
 
     def play_selected_song(self, video_id):
-        \"\"\"Reproducción en hilo puro de sistema para máxima fluidez de GUI.\"\"\"
-        # Lógica de Toggle: Si es la misma canción, pausamos/reanudamos
+        """Playback in pure system thread for maximum GUI fluidity."""
+        # Toggle Logic: If it's the same song, pause/resume
         if self.current_track_id == video_id:
             self.player.toggle_pause()
-            # Feedback visual simple
+            # Simple visual feedback
             self.query_one("#player-bar").update(f"⏯️ Toggle Play/Pause")
             return
 
@@ -230,7 +230,7 @@ class PlayerScreen(Screen):
         if not song:
             return
 
-        self.current_track_id = video_id # Actualizamos la canción actual
+        self.current_track_id = video_id # Update current song
         
         self.query_one("#current-title").update(song.get("title", "Unknown"))
         artists = song.get("artists", [])
@@ -242,42 +242,45 @@ class PlayerScreen(Screen):
             self.download_art(thumbnails[-1]["url"])
 
         url = f"https://music.youtube.com/watch?v={video_id}"
-        self.query_one("#player-bar").update(f"Buffering: {song.get('title')}...")
+        title = song.get('title')
+        self.query_one("#player-bar").update(f"Buffering: [b]{title}[/b]...")
         
-        # Hilo puro de Python para que Textual no se entere
+        # Pure Python thread so Textual doesn't know
         threading.Thread(target=self.player.play, args=(url,), daemon=True).start()
         
-        # Aseguramos que el foco no se pierda
+        # Ensure focus is not lost
         self.query_one("#results-table").focus()
 
     def on_input_changed(self, event: Input.Changed):
-        """Activar búsqueda mientras se escribe."""
+        """Activate search while typing."""
         if event.input.id == "search-input":
             query = event.value
-            if len(query) > 2:  # Solo buscar si hay al menos 3 caracteres
+            if len(query) > 2:  # Only search if at least 3 characters
                 self.run_search(query)
 
     def on_key(self, event):
-        """Manejar navegación y foco automático del buscador."""
-        # Atajo global de Play/Pause con Espacio
+        """Handle navigation and auto-focus of search."""
+        # Global Play/Pause shortcut with Space
         if event.key == "space":
-            # Si estamos en el input, permitimos escribir espacios
+            # If we are in the input, allow typing spaces
             if self.focused and self.focused.id == "search-input":
                 return
             
             self.player.toggle_pause()
             status = self.player.get_status()
-            state = "PAUSED" if status.get("paused") else "PLAYING"
-            self.query_one("#player-bar").update(f"Status: {state}")
+            is_paused = status.get("paused")
+            state = "Paused" if is_paused else "Playing"
+            color_hex = "#9D00FF" if is_paused else "#32CD32"
+            self.query_one("#player-bar").update(f"Status: [{color_hex}]{state}[/]")
             event.prevent_default()
             return
 
-        # Si se pulsa una tecla alfanumérica y no hay foco en un input, enfocar buscador
+        # If an alphanumeric key is pressed and no input is focused, focus search
         if event.is_printable and len(event.key) == 1:
             if not (self.focused and isinstance(self.focused, (Input))):
                 self.query_one("#search-input").focus()
 
-        # Navegación desde el buscador a la tabla
+        # Navigation from search to table
         if self.focused and self.focused.id == "search-input":
             if event.key == "down":
                 self.query_one("#results-table").focus()
@@ -287,7 +290,7 @@ class PlayerScreen(Screen):
                 event.prevent_default()
 
     def on_input_submitted(self, event: Input.Submitted):
-        """Mantener soporte para Enter, pero la búsqueda real ya ocurre en on_input_changed."""
+        """Keep Enter support, but actual search happens in on_input_changed."""
         if event.input.id == "search-input":
             self.run_search(event.value)
 
@@ -298,10 +301,10 @@ class PlayerScreen(Screen):
             
         self.query_one("#player-bar").update(f"🔍 Searching for '{query}'...")
         table = self.query_one("#results-table")
-        table.loading = True  # Efecto visual de carga nativo de Textual
+        table.loading = True  # Native Textual loading visual effect
         
         try:
-            # Ejecutamos la búsqueda en un hilo para no bloquear el event loop
+            # Run search in a thread to avoid blocking the event loop
             results = await asyncio.to_thread(self.app.client.search_songs, query)
             
             self.results_data = {song['videoId']: song for song in results if 'videoId' in song}
@@ -336,9 +339,10 @@ class PlayerScreen(Screen):
     def action_toggle_pause(self):
         self.player.toggle_pause()
         status = self.player.get_status()
-        state = "Paused" if status.get("paused") else "Playing"
-        self.query_one("#player-bar").update(f"Status: {state}")
+        is_paused = status.get("paused")
+        state = "Paused" if is_paused else "Playing"
+        color_hex = "#9D00FF" if is_paused else "#32CD32"
+        self.query_one("#player-bar").update(f"Status: [{color_hex}]{state}[/]")
 
     def key_space(self):
         self.action_toggle_pause()
-
