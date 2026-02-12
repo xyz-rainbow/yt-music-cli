@@ -42,15 +42,13 @@ class LoginScreen(Screen):
         text-style: bold;
     }
     #btn-oauth {
-        background: #2196F3;
-        color: white;
-        height: 3;
-        margin-top: 1;
-    }
-    #btn-submit {
         background: $surface-lighten-1;
         color: $text-disabled;
         border: none;
+    }
+    #btn-submit {
+        background: $success;
+        color: white;
     }
 
     #btn-paste {
@@ -79,13 +77,13 @@ class LoginScreen(Screen):
         height: auto;
     }
     #btn-oauth {
-        background: #2196F3;
-        color: white;
+        background: $surface-lighten-1;
+        color: $text-disabled;
+        border: none;
     }
     #btn-submit {
-        background: $surface-lighten-1;
+        background: $success;
         color: white;
-        border: none;
     }
 
     TextArea {
@@ -101,20 +99,8 @@ class LoginScreen(Screen):
             yield Label("YOUTUBE MUSIC CLI", id="title")
             yield Label("Authentication Required", classes="subtitle")
             
-            # OAuth Section (Primary as requested)
-            yield Button("Login with Google", id="btn-oauth")
-            
-            with Vertical(id="oauth-container", classes="hidden"):
-                yield Label("1. Go to URL:", classes="step-label")
-                yield Input(id="url-copy", classes="copy-field", value="", disabled=True)
-                yield Label("2. Enter Code:", classes="step-label")
-                yield Input(id="user-code", classes="copy-field", value="", disabled=True)
-                yield Label("Waiting for approval...", id="status-label")
-            
-            yield Label("──────────────────────────────────────", classes="subtitle")
-
-            # Browser Auth Section (Fallback)
-            yield Label("Manual Fallback: Browser Authentication", classes="step-label")
+            # Browser Auth Section (Primary)
+            yield Label("Recommended: Browser Authentication", classes="step-label")
             with Vertical(classes="instructions"):
                 yield Label("1. Open music.youtube.com in your browser")
                 yield Label("2. Copy 'Cookie' header from DevTools (F12 > Network)")
@@ -123,6 +109,18 @@ class LoginScreen(Screen):
             yield TextArea(id="input-headers")
             yield Button("Paste from Clipboard", id="btn-paste")
             yield Button("Login with Browser Headers", id="btn-submit")
+            
+            yield Label("──────────────────────────────────────", classes="subtitle")
+
+            # OAuth Section (Secondary fallback)
+            yield Button("Login with Google (Advanced/Legacy)", id="btn-oauth")
+            
+            with Vertical(id="oauth-container", classes="hidden"):
+                yield Label("1. Go to URL:", classes="step-label")
+                yield Input(id="url-copy", classes="copy-field", value="", disabled=True)
+                yield Label("2. Enter Code:", classes="step-label")
+                yield Input(id="user-code", classes="copy-field", value="", disabled=True)
+                yield Label("Waiting for approval...", id="status-label")
 
             yield Label("", id="error-label")
 
