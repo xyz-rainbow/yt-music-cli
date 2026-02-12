@@ -145,7 +145,7 @@ class Player:
                     )
                 except Exception as e:
                     self.logger.error(f"Playback failed: {e}")
-                    raise e
+                    raise
 
 
     def pause(self):
