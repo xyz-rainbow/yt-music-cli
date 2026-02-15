@@ -9,6 +9,49 @@ import threading
 import signal
 from src.config import get_config_dir, get_data_dir
 
+class MpvIPC:
+    """Helper class to handle robust MPV IPC communication."""
+    def __init__(self, ipc_path, logger):
+        self.ipc_path = ipc_path
+        self.logger = logger
+        self._max_retries = 3
+
+    def send(self, command, timeout=0.2):
+        """Send a command with automatic retries."""
+        if not os.path.exists(self.ipc_path):
+            return None
+
+        for attempt in range(self._max_retries):
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                    client.settimeout(timeout)
+                    client.connect(self.ipc_path)
+                    
+                    msg = json.dumps({"command": command}) + "\n"
+                    client.sendall(msg.encode())
+                    
+                    # If it's a 'get_' property command, wait for response
+                    if command[0].startswith("get_"):
+                        response = b""
+                        while True:
+                            chunk = client.recv(4096)
+                            if not chunk: break
+                            response += chunk
+                            if b"\n" in chunk: break
+                        
+                        if response:
+                            return json.loads(response.decode().split("\n")[0])
+                    return True  # Success for set commands
+            
+            except (socket.timeout, ConnectionRefusedError):
+                if attempt < self._max_retries - 1:
+                    time.sleep(0.05 * (attempt + 1))
+                    continue
+            except Exception as e:
+                self.logger.warning(f"IPC error sending {command[0]}: {e}")
+                break
+        return None
+
 class Player:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -17,6 +60,9 @@ class Player:
         self.ipc_path = f"/tmp/ytmusic-cli-mpv-{os.getuid()}.sock"
         self._paused = False
         self._lock = threading.RLock()
+        
+        # Initialize IPC Helper
+        self.ipc = MpvIPC(self.ipc_path, self.logger)
         
         # Configuration for yt-dlp
         self.ydl_opts = {
@@ -29,6 +75,8 @@ class Player:
         self.auth_file = str(get_config_dir() / "oauth.json")
         
         if shutil.which("mpv"):
+            self.executable = "mpv"
+            # ... (Rest of init remains same, effectively replacing _send_command usages later)
             self.executable = "mpv"
             
             # Robustly find yt-dlp in PATH (system or venv)
@@ -114,30 +162,9 @@ class Player:
             else:
                 self.logger.error("MPV IPC socket not found after timeout")
 
-    def _send_command(self, command):
-        """Send a JSON command and close socket immediately."""
-        if not os.path.exists(self.ipc_path):
-            self.logger.warning(f"IPC socket {self.ipc_path} missing for command {command[0]}")
-            return None
+
         
-        try:
-            # Creamos el socket solo para este comando y lo cerramos al instante
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client.settimeout(0.1) # Increased timeout slightly for reliability
-            client.connect(self.ipc_path)
-            msg = json.dumps({"command": command}) + "\n"
-            client.sendall(msg.encode())
-            
-            if command[0].startswith("get_"):
-                response = client.recv(4096)
-                client.close()
-                if response:
-                    return json.loads(response.decode().split("\n")[0])
-            else:
-                client.close()
-        except Exception as e:
-            self.logger.error(f"IPC error sending {command[0]}: {e}")
-        return None
+
 
 
     def play(self, url: str):
@@ -152,7 +179,7 @@ class Player:
         with self._lock:
             if self.current_url == url and self.process and self.process.poll() is None:
                 if self.executable == "mpv":
-                    self._send_command(["set_property", "pause", False])
+                    self.ipc.send(["set_property", "pause", False])
                 return
 
             self._ensure_process()
@@ -174,8 +201,8 @@ class Player:
                     )
                     if result.returncode == 0:
                         stream_url = result.stdout.strip()
-                        self._send_command(["loadfile", stream_url, "replace"])
-                        self._send_command(["set_property", "pause", False])
+                        self.ipc.send(["loadfile", stream_url, "replace"])
+                        self.ipc.send(["set_property", "pause", False])
                         self.logger.debug("Playing via extracted direct URL")
                         return
                     else:
@@ -184,8 +211,8 @@ class Player:
                     self.logger.warning(f"Direct extraction error: {e}")
 
                 # Fallback to standard loadfile if extraction failed
-                self._send_command(["loadfile", url, "replace"])
-                self._send_command(["set_property", "pause", False])
+                self.ipc.send(["loadfile", url, "replace"])
+                self.ipc.send(["set_property", "pause", False])
 
     def enqueue(self, url: str):
         """Add a stream URL to the playlist."""
@@ -195,7 +222,7 @@ class Player:
         with self._lock:
             self._ensure_process()
             if self.executable == "mpv":
-                self._send_command(["loadfile", url, "append-play"])
+                self.ipc.send(["loadfile", url, "append-play"])
 
     def remove_from_queue(self, url: str) -> bool:
         """Remove a specific URL from the mpv playlist. Returns True if found."""
@@ -203,7 +230,7 @@ class Player:
             return False
 
         with self._lock:
-            playlist_resp = self._send_command(["get_property", "playlist"])
+            playlist_resp = self.ipc.send(["get_property", "playlist"])
             if not playlist_resp or "data" not in playlist_resp:
                 return False
 
@@ -211,7 +238,7 @@ class Player:
             # Find the index of the item with the matching filename (URL)
             for i, item in enumerate(playlist):
                 if item.get("filename") == url:
-                    self._send_command(["playlist-remove", i])
+                    self.ipc.send(["playlist-remove", i])
                     return True
         return False
 
@@ -245,7 +272,7 @@ class Player:
             self._ensure_process()
             if self.executable == "mpv":
                 # 'cycle pause' is atomic and faster
-                self._send_command(["cycle", "pause"])
+                self.ipc.send(["cycle", "pause"])
             else:
                 self.pause()
 
@@ -275,14 +302,14 @@ class Player:
             return
 
         if self.executable == "mpv":
-            self._send_command(["set_property", "volume", volume])
+            self.ipc.send(["set_property", "volume", volume])
         else:
             self.logger.warning(f"Volume control not supported for {self.executable}")
 
     def get_volume(self) -> int:
         """Get current volume (0-100)."""
         if self.executable == "mpv":
-            resp = self._send_command(["get_property", "volume"])
+            resp = self.ipc.send(["get_property", "volume"])
             if resp and "data" in resp:
                 return int(resp["data"])
         return 100
@@ -291,10 +318,10 @@ class Player:
         """Get current playback status."""
         with self._lock:
             if self.executable == "mpv":
-                paused = self._send_command(["get_property", "pause"])
-                percent = self._send_command(["get_property", "percent-pos"])
-                time_pos = self._send_command(["get_property", "time-pos"])
-                duration = self._send_command(["get_property", "duration"])
+                paused = self.ipc.send(["get_property", "pause"])
+                percent = self.ipc.send(["get_property", "percent-pos"])
+                time_pos = self.ipc.send(["get_property", "time-pos"])
+                duration = self.ipc.send(["get_property", "duration"])
                 
                 return {
                     "paused": paused.get("data", False) if paused else False,
@@ -322,16 +349,16 @@ class Player:
         """Seek forward or backward by seconds."""
         if self.executable == "mpv":
             # seconds can be positive (forward) or negative (backward)
-            self._send_command(["seek", seconds, "relative"])
+            self.ipc.send(["seek", seconds, "relative"])
         else:
             self.logger.warning(f"Seeking not supported for {self.executable}")
 
     def skip_next(self):
         """Skip to the next song in the playlist."""
         if self.executable == "mpv":
-            self._send_command(["playlist-next"])
+            self.ipc.send(["playlist-next"])
 
     def skip_prev(self):
         """Skip to the previous song in the playlist."""
         if self.executable == "mpv":
-            self._send_command(["playlist-prev"])
+            self.ipc.send(["playlist-prev"])

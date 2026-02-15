@@ -29,16 +29,14 @@ class YTMusicClient:
             results = self.api.search(query, limit=limit)
             return [r for r in results if r.get("resultType") in ["song", "video"]]
         except Exception as e:
-            # Known ytmusicapi OAuth bug: TV/limited-input clients get 400 on search
-            if "400" in str(e):
-                logger.warning("OAuth search returned 400, falling back to public search")
-                try:
-                    results = self.public_api.search(query, limit=limit)
-                    return [r for r in results if r.get("resultType") in ["song", "video"]]
-                except Exception as fallback_err:
-                    logger.error(f"Public search also failed: {fallback_err}")
-                    raise fallback_err
-            raise
+            # Fallback to public API on any error (400, 401, 403, or invalid client)
+            logger.warning(f"Authenticated search failed: {e}. Falling back to public search.")
+            try:
+                results = self.public_api.search(query, limit=limit)
+                return [r for r in results if r.get("resultType") in ["song", "video"]]
+            except Exception as fallback_err:
+                logger.error(f"Public search also failed: {fallback_err}")
+                raise fallback_err
 
     def get_library_playlists(self):
         return self.api.get_library_playlists()

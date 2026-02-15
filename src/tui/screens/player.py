@@ -172,7 +172,6 @@ class PlayerScreen(Screen):
             )
         )
         with Vertical(id="player-bar"):
-            yield ProgressBar(total=100, show_bar=True, show_eta=False, show_percentage=False, id="progress-bar")
             with Vertical(id="player-info-container"):
                 yield Label("No song seleccionado", id="current-title", classes="song-title")
                 yield Label("", id="current-artist", classes="song-artist")
@@ -181,7 +180,10 @@ class PlayerScreen(Screen):
                     yield Button("⏯️", id="btn-play-pause", classes="btn-control")
                     yield Button("⏭️", id="btn-next", classes="btn-control")
                 yield Label("00:00 / 00:00", id="time-display")
-                yield Static("Atajos: [Espacio] Play/Pausa | [Alt+←/→] Saltar | [Alt+↑/↓] Vol | [Alt+Enter] Añadir Cola", classes="controls-hint")
+            
+            # Moved Progress Bar below controls ("mas baja")
+            yield ProgressBar(total=100, show_bar=True, show_eta=False, show_percentage=False, id="progress-bar")
+            yield Static("Atajos: [Espacio] Play/Pausa | [Alt+←/→] Saltar | [Alt+↑/↓] Vol | [Alt+Enter] Añadir Cola", classes="controls-hint")
 
     def on_mount(self):
         self.player = Player()
@@ -506,7 +508,7 @@ class PlayerScreen(Screen):
             self.notify("Error removing song", severity="error")
 
     def action_toggle_liked(self):
-        """Toggles local favorite status for the current or highlighted song."""
+        """Toggles favorite status, enforcing API success first."""
         video_id = self.current_track_id
         if not video_id:
             table = self.query_one("#results-table")
@@ -515,37 +517,66 @@ class PlayerScreen(Screen):
         
         if video_id:
             song = self.results_data.get(video_id, {"title": "Unknown Song"})
-            title = song.get("title", "Unknown")
-            if video_id in self.local_favorites:
-                self.local_favorites.remove(video_id)
-                self.notify(f"Eliminado de Favoritos: {title}", severity="warning")
-            else:
-                self.local_favorites.add(video_id)
-                self.notify(f"Añadido a Favoritos: {title}")
-            self.save_favorites()
+            self.toggle_like_async(video_id, song)
         else:
             self.notify("No song selected", severity="error")
 
+    @work
+    async def toggle_like_async(self, video_id: str, song: dict):
+        """Async worker: API Call -> Then Local Save."""
+        title = song.get("title", "Unknown")
+        is_liked = video_id in self.local_favorites
+        
+        # 1. Optimistic UI feedback or "Syncing..."
+        action = "Removing..." if is_liked else "Liking..."
+        self.notify(f"{action} {title} (Syncing API...)", timeout=2.0)
+        
+        try:
+            # 2. Call API
+            if is_liked:
+                await asyncio.to_thread(self.app.client.unlike_song, video_id)
+            else:
+                await asyncio.to_thread(self.app.client.like_song, video_id)
+            
+            # 3. On Authenticated Success: Update Local State
+            if is_liked:
+                del self.local_favorites[video_id]
+                self.notify(f"Removed from Favorites: {title}")
+            else:
+                clean_song = {
+                    "videoId": video_id,
+                    "title": title,
+                    "artists": song.get("artists", [{"name": "Unknown"}])
+                }
+                self.local_favorites[video_id] = clean_song
+                self.notify(f"Saved to Favorites: {title}")
+            
+            # 4. Persist
+            self.save_favorites()
+            
+        except Exception as e:
+            # 5. On Failure: Revert/Do nothing and Warn
+            logger.error(f"API Sync failed for {video_id}: {e}")
+            self.notify(f"Failed to sync with YouTube. Not saved locally.", severity="error")
+
     def load_favorites(self):
+        """Load favorites as a dictionary of videoId -> metadata."""
         if os.path.exists(self.favorites_file):
             try:
                 with open(self.favorites_file, "r") as f:
                     data = json.load(f)
-                    # Support both list of IDs and dict of metadata
-                    if isinstance(data, list): return set(data)
-                    return set(data.keys())
-            except: return set()
-        return set()
+                    # Migration: If it was a list (IDs only) or set, return empty dict or try to fetch?
+                    # For now, if list, just convert to dict with unknown metadata to avoid crash
+                    if isinstance(data, list): 
+                        return {vid: {"title": "Unknown", "videoId": vid} for vid in data}
+                    return data # Expecting dict
+            except: return {}
+        return {}
 
     def save_favorites(self):
-        # We save a dict with some metadata for easier loading later if API is offline
-        favs_data = {}
-        for vid in self.local_favorites:
-            song = self.results_data.get(vid, {"title": "Unknown", "artists": []})
-            favs_data[vid] = song
-        
+        """Save the favorites dictionary directly."""
         with open(self.favorites_file, "w") as f:
-            json.dump(favs_data, f)
+            json.dump(self.local_favorites, f)
 
     @work(exclusive=True)
     async def load_local_favorites_content(self):
@@ -555,8 +586,8 @@ class PlayerScreen(Screen):
                 self.notify("No local favorites yet.")
                 return
             
-            with open(self.favorites_file, "r") as f:
-                favs = json.load(f)
+            # local_favorites is now the master source of truth
+            favs = self.local_favorites
             
             tracks = []
             for vid, song in favs.items():
