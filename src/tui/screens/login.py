@@ -103,6 +103,9 @@ class LoginScreen(Screen):
             # The Main and only Button the user should need
             yield Button("Login with Google", id="btn-oauth", variant="primary")
             
+            # Guest Mode Option
+            yield Button("Continuar como Invitado (Sin Login)", id="btn-guest", variant="default")
+            
             # Additional fallback option for local browser flow
             yield Button("Try Browser Redirect (if above fails)", id="btn-local-flow", variant="default", classes="hidden")
             
@@ -151,6 +154,11 @@ class LoginScreen(Screen):
 
         elif event.button.id == "btn-local-flow":
             self.run_local_flow(auth)
+            
+        elif event.button.id == "btn-guest":
+            auth.login_guest()
+            self.app.switch_screen("player")
+            self.app.notify("Iniciada sesión como Invitado")
 
         elif event.button.id == "btn-toggle-advanced":
             container = self.query_one("#advanced-container")

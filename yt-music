@@ -1,25 +1,11 @@
 #!/bin/bash
-# Script de inicio para yt-music-cli con chequeo de dependencias
+PROJECT_DIR="/home/cloud-xyz/Documents/Dev Mode/yt-music"
+PYTHON_EXEC="$PROJECT_DIR/.venv/bin/python"
 
-if ! command -v mpv &> /dev/null; then
-    echo "Error: 'mpv' no está instalado. Es necesario para la reproducción de audio."
-    echo "Puedes instalarlo con: sudo apt install mpv"
+if [ ! -f "$PYTHON_EXEC" ]; then
+    echo "Error: Python executable not found at $PYTHON_EXEC"
     exit 1
 fi
 
-# Detectar el directorio donde reside este script
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-# Intentar usar el venv local si existe
-PYTHON_PATH="$DIR/.venv/bin/python"
-APP_PATH="$DIR/main.py"
-
-if [ ! -f "$PYTHON_PATH" ]; then
-    echo "Advertencia: No se encontró .venv/bin/python. Intentando usar python3 del sistema..."
-    PYTHON_PATH="python3"
-fi
-
-# Cambiar al directorio del proyecto para asegurar que los archivos locales se carguen correctamente
-cd "$DIR"
-
-"$PYTHON_PATH" "$APP_PATH" "$@"
+cd "$PROJECT_DIR" || exit 1
+"$PYTHON_EXEC" "$PROJECT_DIR/main.py" "$@"

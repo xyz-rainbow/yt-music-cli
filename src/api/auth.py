@@ -93,6 +93,10 @@ class AuthManager:
             self.logger.error(f"Login error: {e}")
             raise
 
+    def login_guest(self) -> None:
+        """Initialize valid public API for guest usage."""
+        self._api = YTMusic() # No auth works for public search/radio
+
     def get_custom_credentials(self) -> tuple[Optional[str], Optional[str]]:
         """
         Load custom client_id and client_secret from client_secrets.json.

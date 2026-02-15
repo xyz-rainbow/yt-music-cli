@@ -173,7 +173,7 @@ class PlayerScreen(Screen):
         )
         with Vertical(id="player-bar"):
             with Vertical(id="player-info-container"):
-                yield Label("No song seleccionado", id="current-title", classes="song-title")
+                yield Label("No song selected", id="current-title", classes="song-title")
                 yield Label("", id="current-artist", classes="song-artist")
                 with Horizontal(id="player-controls-row"):
                     yield Button("⏮️", id="btn-prev", classes="btn-control")
@@ -181,9 +181,8 @@ class PlayerScreen(Screen):
                     yield Button("⏭️", id="btn-next", classes="btn-control")
                 yield Label("00:00 / 00:00", id="time-display")
             
-            # Moved Progress Bar below controls ("mas baja")
             yield ProgressBar(total=100, show_bar=True, show_eta=False, show_percentage=False, id="progress-bar")
-            yield Static("Atajos: [Espacio] Play/Pausa | [Alt+←/→] Saltar | [Alt+↑/↓] Vol | [Alt+Enter] Añadir Cola", classes="controls-hint")
+            yield Static("Shortcuts: [Space] Play/Pause | [Alt+←/→] Seek | [Alt+↑/↓] Vol | [Alt+Enter] Queue | [Alt+F] Fav/Like", classes="controls-hint")
 
     def on_mount(self):
         self.player = Player()
@@ -408,8 +407,12 @@ class PlayerScreen(Screen):
             num_rows = event.data_table.row_count
             
             # If we are within 5 rows of the bottom, load more
+            # Added check for is_loading_more to prevent spam
             if num_rows > 10 and row_index >= num_rows - 5 and not self.is_loading_more:
                 if self.current_search_query:
+                    # Debounce/Throttle: Ensure we don't fire multiple requests
+                    self.is_loading_more = True
+                    self.notify("Loading more results...", timeout=1.0)
                     self.current_results_limit += 20
                     self.run_search(self.current_search_query, append=True)
 
@@ -433,15 +436,21 @@ class PlayerScreen(Screen):
     @work(exclusive=True)
     async def run_search(self, query, append=False):
         self.current_search_query = query
-        self.is_loading_more = True
+        # self.is_loading_more is set by the caller (scroll) or reset here for new search
+        if not append:
+            self.is_loading_more = True 
+            
         try:
+            # We fetch limit+20 each time. inefficient but functional for public API.
             results = await asyncio.to_thread(self.app.client.search_songs, query, limit=self.current_results_limit)
             if results:
                 for s in results:
                     if 'videoId' in s: self.results_data[s['videoId']] = s
+                # If appending, we only want to add NEW items, populate_table handles dedup
                 self.populate_table(results, append=append)
             elif not append:
                 self.query_one("#results-table").clear()
+                self.notify("No results found.", severity="warning")
         except Exception as e:
             self.notify(f"Search error: {e}", severity="error")
         finally:
@@ -483,7 +492,7 @@ class PlayerScreen(Screen):
 
     def action_add_to_queue(self):
         table = self.query_one("#results-table")
-        if table.cursor_row is not None:
+        if table.row_count > 0 and table.cursor_row is not None:
             row_key = table.coordinate_to_cell_key(table.cursor_coordinate).row_key
             video_id = row_key.value
             song = self.results_data.get(video_id)
@@ -512,7 +521,8 @@ class PlayerScreen(Screen):
         video_id = self.current_track_id
         if not video_id:
             table = self.query_one("#results-table")
-            if table.cursor_row is not None:
+            # FIX: Ensure table has rows before checking cursor to avoid CellDoesNotExist
+            if table.row_count > 0 and table.cursor_row is not None:
                 video_id = table.coordinate_to_cell_key(table.cursor_coordinate).row_key.value
         
         if video_id:
@@ -549,7 +559,7 @@ class PlayerScreen(Screen):
                     "artists": song.get("artists", [{"name": "Unknown"}])
                 }
                 self.local_favorites[video_id] = clean_song
-                self.notify(f"Saved to Favorites: {title}")
+                self.notify(f"Added to Favorites: {title}")
             
             # 4. Persist
             self.save_favorites()
