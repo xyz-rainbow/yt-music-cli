@@ -20,24 +20,9 @@ CONFIG_DIR = get_config_dir()
 CREDENTIALS_FILE = str(CONFIG_DIR / "oauth.json")
 CLIENT_SECRETS_FILE = str(CONFIG_DIR / "client_secrets.json")
 
-# Simple XOR obfuscation (Key: 123) to prevent automated scraping
-# These strings are XOR'd and then Base64 encoded.
-_KEY = 123
-_CID_ENC = "TEJOQ01PQkpCTk5PVhoXFBIWFkkUFA0fS0oXDQ4eTE8TFApMHBFJEEJDTRcLVRoLCwhVHBQUHBceDggeCRgUFQ8eFQ9VGBQW"
-_SEC_ENC = "PDQ4KCsjVlYaHCRDKU0pMjA2Py5NFQwJFjcsEisdGTIsHU8="
-
-def _get_decoded_defaults():
-    try:
-        cid_bytes = base64.b64decode(_CID_ENC)
-        sec_bytes = base64.b64decode(_SEC_ENC)
-        # Decode: XOR back with key
-        cid = "".join(chr(b ^ _KEY) for b in cid_bytes)
-        sec = "".join(chr(b ^ _KEY) for b in sec_bytes)
-        return cid, sec
-    except Exception:
-        return "", ""
-
-DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET = _get_decoded_defaults()
+# Credentials should be provided via client_secrets.json or environment variables
+DEFAULT_CLIENT_ID = None
+DEFAULT_CLIENT_SECRET = None
 
 # Scopes required for YouTube Music
 SCOPES = ["https://www.googleapis.com/auth/youtube"]

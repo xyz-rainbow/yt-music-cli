@@ -30,9 +30,17 @@ class Player:
         
         if shutil.which("mpv"):
             self.executable = "mpv"
-            # Buscamos el yt-dlp de nuestro .venv
-            venv_ytdlp = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv/bin/yt-dlp")
             
+            # Robustly find yt-dlp in PATH (system or venv)
+            ytdlp_bin = shutil.which("yt-dlp")
+            if not ytdlp_bin:
+                # Fallback: check current venv if running from source but not in PATH
+                venv_ytdlp = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".venv/bin/yt-dlp")
+                if os.path.exists(venv_ytdlp):
+                    ytdlp_bin = venv_ytdlp
+                else:
+                    self.logger.warning("yt-dlp not found in PATH. Playback may fail.")
+
             # Argumentos: "Pure Audio Mode" (Sin corrección A/V para evitar crujidos)
             self.args = [
                 "--no-video", 
@@ -60,8 +68,9 @@ class Player:
                  # but for now we try to let mpv handle it or we could export to netscape format.
                  # Let's at least try to point to it if it was a headers/cookies file.
                  pass
-            if os.path.exists(venv_ytdlp):
-                self.args.append(f"--script-opts=ytdl_hook-ytdl_path={venv_ytdlp}")
+            
+            if ytdlp_bin:
+                self.args.append(f"--script-opts=ytdl_hook-ytdl_path={ytdlp_bin}")
         elif shutil.which("ffplay"):
             self.executable = "ffplay"
             self.args = ["-nodisp", "-autoexit"]
