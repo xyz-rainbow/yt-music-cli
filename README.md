@@ -97,17 +97,18 @@ yt-music
 python main.py
 ```
 
-### Authentication (Recommended)
+### Authentication
 
-Google has restricted the public OAuth flow for many users. The most reliable way to login is **Browser Authentication**:
+1. Run `yt-music`.
+2. Select **Login with Google**.
+3. Follow the instructions to authenticate via your browser.
 
-1. Open **music.youtube.com** in your browser.
-2. Open Developer Tools (`F12`), go to the **Network** tab, and refresh the page.
-3. Look for a request to `music.youtube.com`, find the **Cookie** header in the request headers, and copy its value.
-4. In **yt-music-cli**, paste the cookie string into the login screen and press Enter.
+That's it! The application includes necessary credentials for a seamless experience.
 
----
-**Note**: Legacy "Login with Google" is still available but may require you to configure your own Google Cloud project if it fails with an `invalid_client` error.
+#### Advanced / Troubleshooting
+If you prefer to use your own credentials or encounter issues:
+- **Browser Cookies**: You can use the "Paste Headers (Advanced)" option in the login screen (copy cookie from `music.youtube.com`).
+- **Custom Credentials**: Create a `client_secrets.json` file in the application directory with your own Google Cloud credentials.
 
 
 ## 🏗️ Project Structure

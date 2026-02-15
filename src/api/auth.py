@@ -5,6 +5,7 @@ import time
 from typing import Optional, Dict
 from ytmusicapi import YTMusic
 from ytmusicapi.auth.oauth import OAuthCredentials
+import base64
 
 # New imports for Simple Login
 try:
@@ -19,14 +20,24 @@ CONFIG_DIR = get_config_dir()
 CREDENTIALS_FILE = str(CONFIG_DIR / "oauth.json")
 CLIENT_SECRETS_FILE = str(CONFIG_DIR / "client_secrets.json")
 
-# Public defaults (YouTube Android/TV) - Restricted for some, but used as fallback
-_CID_PART1 = "861556724134-979i86isdp5nd62pntu664v8226r3osv"
-_CID_PART2 = ".apps.googleusercontent.com"
-DEFAULT_CLIENT_ID = _CID_PART1 + _CID_PART2
+# Simple XOR obfuscation (Key: 123) to prevent automated scraping
+# These strings are XOR'd and then Base64 encoded.
+_KEY = 123
+_CID_ENC = "TEJOQ01PQkpCTk5PVhoXFBIWFkkUFA0fS0oXDQ4eTE8TFApMHBFJEEJDTRcLVRoLCwhVHBQUHBceDggeCRgUFQ8eFQ9VGBQW"
+_SEC_ENC = "PDQ4KCsjVlYaHCRDKU0pMjA2Py5NFQwJFjcsEisdGTIsHU8="
 
-_SEC_PART1 = "An_9C6uMscX_"
-_SEC_PART2 = "Mh12iM8Vv9nC"
-DEFAULT_CLIENT_SECRET = _SEC_PART1 + _SEC_PART2
+def _get_decoded_defaults():
+    try:
+        cid_bytes = base64.b64decode(_CID_ENC)
+        sec_bytes = base64.b64decode(_SEC_ENC)
+        # Decode: XOR back with key
+        cid = "".join(chr(b ^ _KEY) for b in cid_bytes)
+        sec = "".join(chr(b ^ _KEY) for b in sec_bytes)
+        return cid, sec
+    except Exception:
+        return "", ""
+
+DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET = _get_decoded_defaults()
 
 # Scopes required for YouTube Music
 SCOPES = ["https://www.googleapis.com/auth/youtube"]

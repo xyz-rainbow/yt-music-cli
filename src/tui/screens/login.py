@@ -122,6 +122,18 @@ class LoginScreen(Screen):
                 yield TextArea(id="input-headers")
                 yield Button("Login with Cookies", id="btn-submit-cookies")
 
+            yield Label("──────────────────────────────────────", classes="subtitle")
+            
+            # Custom Credentials Section
+            yield Button("Configure Custom Client ID", id="btn-toggle-custom")
+            
+            with Vertical(id="custom-creds-container", classes="hidden"):
+                 yield Label("Client ID:", classes="step-label")
+                 yield Input(id="input-client-id", placeholder="...apps.googleusercontent.com")
+                 yield Label("Client Secret:", classes="step-label")
+                 yield Input(id="input-client-secret", password=True)
+                 yield Button("Save & Use Credentials", id="btn-save-custom")
+
             yield Label("", id="error-label")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
