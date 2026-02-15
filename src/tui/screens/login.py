@@ -202,8 +202,9 @@ class LoginScreen(Screen):
                 try:
                     opened = webbrowser.open(url)
                     if not opened:
-                         # Fallback for some Linux environments
-                         os.system(f"xdg-open '{url}' &")
+                         # Fallback for some Linux environments - Use subprocess to avoid shell injection risk
+                         import subprocess
+                         subprocess.Popen(["xdg-open", url], start_new_session=True)
                 except Exception as e:
                     logger.warning(f"Browser open failed: {e}")
                     self.app.notify("Could not open browser. Please visit the link above.", severity="error")

@@ -23,11 +23,9 @@ class YTMusicApp(App):
         self.install_screen(PlayerScreen(), name="player")
         self.install_screen(AccountScreen(), name="account")
         
-        # Check authentication and route
-        if self.auth.is_authenticated():
-            self.push_screen("account")
-        else:
-            self.push_screen("login")
+        # Always start at Welcome Screen (Guest Mode)
+        # Auth check removed to enforce Guest-Only flow
+        self.push_screen("login")
 
     def action_quit(self) -> None:
         """Force clean exit."""
